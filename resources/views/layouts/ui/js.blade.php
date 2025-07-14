@@ -3,3 +3,5 @@
 <script src="{{asset('admin template/dist/assets/js/plugins/bootstrap.min.js')}}"></script>
 <script src="{{asset('admin template/dist/assets/js/script.js')}}"></script>
 <script src="{{asset('admin template/dist/assets/js/theme.js')}}"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

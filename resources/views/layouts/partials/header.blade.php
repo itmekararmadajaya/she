@@ -42,7 +42,10 @@
                     </span>
                   </a>
                   <div class="d-grid my-2">
-                    <button class="btn btn-primary"> <i class="ph ph-sign-out align-middle me-2"></i>Logout </button>
+                    <form action="{{route('logout')}}" method="POST">
+                      @csrf
+                      <button type="submit" class="btn btn-primary"> <i class="ph ph-sign-out align-middle me-2"></i>Logout </button>
+                    </form>
                   </div>
                 </div>
               </div>

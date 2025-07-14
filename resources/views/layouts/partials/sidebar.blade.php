@@ -27,6 +27,18 @@
                         <span class="pc-mtext">Master APAR</span></a>
                 </li>
             </ul>
+            <ul class="pc-navbar">
+                <li class="pc-item pc-caption">
+                    <label data-i18n="Other">Setting</label>
+                    <i class="ph ph-tree-structure"></i>
+                </li>
+                <li class="pc-item"><a href="{{ route('users.index') }}" class="pc-link">
+                        <span class="pc-micon">
+                            <i class="ph ph-cube"></i>
+                        </span>
+                        <span class="pc-mtext">User</span></a>
+                </li>
+            </ul>
         </div>
     </div>
 </nav>
