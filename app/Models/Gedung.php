@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Gedung extends Model
 {
     protected $fillable = [
-        'name'
+        'nama'
     ];
 
     public function masterApars(){

@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'User Edit')
+@section('title', 'Edit User')
 
 @section('content')
 <div class="card col-md-4">
     <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
-            <h1 class="mb-0 h3">User Edit</h1>
+            <h1 class="mb-0 h3">Edit User</h1>
         </div>
     </div>
     <div class="card-body">

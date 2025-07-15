@@ -1,23 +1,23 @@
 @extends('layouts.app')
 
-@section('title', 'Users')
+@section('title', 'Gedung')
 
 @section('content')
-<div class="card">
+<div class="card w-50">
     <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
-            <h1 class="mb-0 h3">Users</h1>
-            <a href="{{ route('users.create') }}" class="btn btn-success">Tambah</a>
+            <h1 class="mb-0 h3">Gedung</h1>
+            <a href="{{ route('gedung.create') }}" class="btn btn-success">Tambah</a>
         </div>
     </div>
     <div class="card-body">
         <div>
-            <form method="GET" action="{{ route('users.index') }}" class="d-flex gap-2 align-items-center mb-3">
-                <div class="col-md-4">
-                    <input type="text" name="search" value="{{ request('search') }}" class="form-control" placeholder="Cari nama atau email...">
+            <form method="GET" action="{{ route('gedung.index') }}" class="d-flex gap-2 align-items-center mb-3">
+                <div class="col-md-5">
+                    <input type="text" name="search" value="{{ request('search') }}" class="form-control" placeholder="Cari nama gedung">
                 </div>
                 <div class="col-md-auto">
-                    <button type="submit" class="btn btn-primary">Cari</button>
+                    <button type="submit" class="btn btn-primary">Filter</button>
                 </div>
             </form>
         </div>
@@ -27,21 +27,17 @@
                     <tr>
                         <th style="width: 1px;;">No</th>
                         <th>Nama</th>
-                        <th>Email</th>
-                        <th>Role</th>
                         <th style="width: 100px;" class="text-center">#</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse ($users as $i => $user)
+                    @forelse ($gedungs as $i => $gedung)
                     <tr>
-                        <td>{{ $users->firstItem() + $i }}</td>
-                        <td>{{ $user->name }}</td>
-                        <td>{{ $user->email }}</td>
-                        <td>{{ $user->getRoleNames()->first() ?? '-' }}</td>
+                        <td>{{ $gedungs->firstItem() + $i }}</td>
+                        <td>{{ $gedung->nama }}</td>
                         <td class="text-center">
-                            <a href="{{ route('users.edit', $user->id) }}" class="btn btn-sm btn-warning"><i class="ph ph-pencil"></i></a>
-                            <form action="{{ route('users.destroy', $user->id) }}" method="POST" class="d-inline delete-form">
+                            <a href="{{ route('gedung.edit', $gedung->id) }}" class="btn btn-sm btn-warning"><i class="ph ph-pencil"></i></a>
+                            <form action="{{ route('gedung.destroy', $gedung->id) }}" method="POST" class="d-inline delete-form">
                                 @csrf
                                 @method('DELETE')
                                 <button class="btn btn-sm btn-danger btn-delete"><i class="ph ph-trash"></i></button>
@@ -57,7 +53,7 @@
             </table>
         </div>
         <div class="d-flex justify-content-end">
-            {{ $users->withQueryString()->links() }}
+            {{ $gedungs->withQueryString()->links() }}
         </div>
     </div>
 </div>

@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('master_apars', function (Blueprint $table) {
             $table->id();
-            $table->string('kode', 4);
+            $table->string('kode', 4)->unique();
             $table->string('jenis_pemadam');
             $table->string('jenis_isi');
             $table->integer('ukuran');
@@ -22,10 +22,10 @@ return new class extends Migration
             $table->string('lokasi');  
             $table->date('tgl_kadaluarsa');
             $table->string('tanda');
-            $table->string('catatan');
+            $table->string('catatan')->nullable();
             $table->date('tgl_refill');
             $table->string('keterangan');
-            $table->boolean('is_active')->default(false);
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }

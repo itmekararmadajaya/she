@@ -11,10 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('item_checks', function (Blueprint $table) {
+        Schema::create('apar_inspections', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->unique();
-            $table->boolean('is_active')->default(true);
+            $table->foreignId('master_apar_id')->constrained()->onDelete('cascade');
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->date('date');
             $table->timestamps();
         });
     }
@@ -24,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('item_checks');
+        Schema::dropIfExists('apar_inspections');
     }
 };

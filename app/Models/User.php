@@ -46,4 +46,9 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function inspeksis()
+    {
+        return $this->hasMany(AparInspection::class);
+    }
 }

@@ -9,22 +9,34 @@
         <div class="navbar-content">
             <ul class="pc-navbar">
                 <li class="pc-item pc-caption">
+                    <label data-i18n="Other">Dashboard</label>
+                    <i class="ph ph-tree-structure"></i>
+                </li>
+                <li class="pc-item"><a href="{{route('dashboard')}}" class="pc-link">
+                        <span class="pc-micon">
+                            <i class="ph ph-clock"></i>
+                        </span>
+                        <span class="pc-mtext">Dashboard</span></a>
+                </li>
+            </ul>
+            <ul class="pc-navbar">
+                <li class="pc-item pc-caption">
                     <label data-i18n="Other">APAR</label>
                     <i class="ph ph-tree-structure"></i>
                 </li>
                 <li class="pc-item pc-hasmenu">
                     <a href="#!" class="pc-link"><span class="pc-micon"> <i class="ph ph-tree-structure"></i> </span><span class="pc-mtext">Menu Master</span><span class="pc-arrow"><i class="ti ti-chevron-right"></i></span></a>
                     <ul class="pc-submenu">
-                        <li class="pc-item"><a class="pc-link" href="#!">APAR</a></li>
-                        <li class="pc-item"><a class="pc-link" href="#!">Item Check</a></li>
-                        <li class="pc-item"><a class="pc-link" href="#!">Gedung</a></li>
+                        <li class="pc-item"><a class="pc-link" href="{{route('master-apar.index')}}">APAR</a></li>
+                        <li class="pc-item"><a class="pc-link" href="{{route('item-check.index')}}">Item Check</a></li>
+                        <li class="pc-item"><a class="pc-link" href="{{route('gedung.index')}}">Gedung</a></li>
                     </ul>
                 </li>
-                <li class="pc-item"><a href="../other/sample-page.html" class="pc-link">
+                <li class="pc-item"><a href="{{route('riwayat-inspeksi')}}" class="pc-link">
                         <span class="pc-micon">
-                            <i class="ph ph-cube"></i>
+                            <i class="ph ph-clock"></i>
                         </span>
-                        <span class="pc-mtext">Master APAR</span></a>
+                        <span class="pc-mtext">Riwayat Inspeksi</span></a>
                 </li>
             </ul>
             <ul class="pc-navbar">

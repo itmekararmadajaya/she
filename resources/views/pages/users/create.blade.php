@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'User Create')
+@section('title', 'Tambah User')
 
 @section('content')
 <div class="card col-md-4">
     <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
-            <h1 class="mb-0 h3">User Create</h1>
+            <h1 class="mb-0 h3">Tambah User</h1>
         </div>
     </div>
     <div class="card-body">

@@ -28,19 +28,19 @@
               <div class="dropdown-header d-flex align-items-center justify-content-between bg-primary">
                 <div class="d-flex my-2">
                   <div class="flex-grow-1 ms-3">
-                    <h6 class="text-white mb-1">Carson Darrin 🖖</h6>
-                    <span class="text-white text-opacity-75">carson.darrin@company.io</span>
+                    <h6 class="text-white mb-1">{{Auth::user()->name}}</h6>
+                    <span class="text-white text-opacity-75">{{Auth::user()->email}}</span>
                   </div>
                 </div>
               </div>
               <div class="dropdown-body">
                 <div class="profile-notification-scroll position-relative" style="max-height: calc(100vh - 225px)">
-                  <a href="#" class="dropdown-item">
+                  {{-- <a href="#" class="dropdown-item">
                     <span>
                       <i class="ph ph-gear align-middle me-2"></i>
                       <span>Profile</span>
                     </span>
-                  </a>
+                  </a> --}}
                   <div class="d-grid my-2">
                     <form action="{{route('logout')}}" method="POST">
                       @csrf

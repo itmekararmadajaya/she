@@ -8,6 +8,6 @@ class ItemCheck extends Model
 {
     protected $fillable = [
         'name',
-        'is_delete'
+        'is_active'
     ];
 }
