@@ -18,6 +18,13 @@ class AparInspection extends Model
         return Carbon::parse($this->date)->format('d-m-Y');
     }
 
+    /**
+     * Return OK or NOK
+     */
+    public function getStatusAttribute(){
+        return $this->details->every(fn($d) => $d->value === 'B') ? 'OK' : 'NOK';
+    }
+
     // Relasi ke APAR
     public function masterApar()
     {

@@ -7,6 +7,11 @@
     <title>@yield('title', 'New Armada')</title>
 
     @include('layouts.ui.css')
+    <style>
+      .swal2-container {
+          z-index: 9999 !important;
+      }
+  </style>
 </head>
 <body>
   @include('layouts.partials.sidebar')

@@ -61,6 +61,14 @@
                         </div>
                     </div>
                 </div>
+                
+                @if ($doneInspection == true)
+                    <div class="card shadow-sm border-0 mb-4">
+                        <div class="card-header bg-warning text-dark fw-bold">
+                            <i class="ph ph-warning me-2"></i> APAR sudah di inspeksi bulan ini. Lanjutkan inspeksi jika ingin update hasil inspeksi terbaru.
+                        </div>
+                    </div>
+                @endif
 
                 <!-- Item Check -->
                 <div class="card shadow-sm border-0 mb-4">

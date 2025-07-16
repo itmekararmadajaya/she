@@ -41,6 +41,21 @@
             </ul>
             <ul class="pc-navbar">
                 <li class="pc-item pc-caption">
+                    <label data-i18n="Other">Laporan</label>
+                    <i class="ph ph-tree-structure"></i>
+                </li>
+                <li class="pc-item pc-hasmenu">
+                    <a href="#!" class="pc-link"><span class="pc-micon"> <i class="ph ph-book"></i> </span><span class="pc-mtext">APAR</span><span class="pc-arrow"><i class="ti ti-chevron-right"></i></span></a>
+                    <ul class="pc-submenu">
+                        <li class="pc-item"><a class="pc-link" href="{{route('laporan.apar.rusak-index')}}">Rusak</a></li>
+                        <li class="pc-item"><a class="pc-link" href="{{route('laporan.apar.refill-index')}}">Refill</a></li>
+                        <li class="pc-item"><a class="pc-link" href="{{route('laporan.apar.yearly-index')}}">Yearly</a></li>
+                        {{-- <li class="pc-item"><a class="pc-link" href="{{route('laporan.apar.refill-index')}}">Detail</a></li> --}}
+                    </ul>
+                </li>
+            </ul>
+            <ul class="pc-navbar">
+                <li class="pc-item pc-caption">
                     <label data-i18n="Other">Setting</label>
                     <i class="ph ph-tree-structure"></i>
                 </li>
