@@ -9,6 +9,7 @@ use App\Http\Controllers\GedungController;
 use App\Http\Controllers\ItemCheckController;
 use App\Http\Controllers\Laporan\AparController as LaporanAparController;
 use App\Http\Controllers\MasterAparController;
+use App\Http\Controllers\SendMailController;
 use App\Http\Controllers\UserController;
 use App\Http\Middleware\AdminMiddleware;
 use Illuminate\Support\Facades\Route;
@@ -60,8 +61,19 @@ Route::group(['prefix' => 'laporan', 'middleware' => [AdminMiddleware::class]], 
 Route::group(['prefix' => 'apar', 'middleware' => 'auth'], function() {
     Route::get('inspeksi', [InspeksiController::class, 'index'])->name('apar.index');
     Route::post('inspeksi', [InspeksiController::class, 'inspeksi'])->name('apar.inspeksi');
+});
 
-    Route::group(['prefix' => 'user/laporan'], function() {
-        Route::get('yearly', [LaporanController::class, 'yearlyIndex'])->name('apar.user.laporan.yearly');
-    });
+/**
+ * Route for quick menu
+ */
+Route::group(['prefix' => 'user/laporan'], function() {
+    Route::get('yearly', [LaporanController::class, 'yearlyIndex'])->name('apar.user.laporan.yearly');
+});
+
+/**
+ * Send mail notification
+ */
+Route::group(['prefix' => 'notification'], function(){
+    Route::get('apar-refill', [SendMailController::class, 'aparRefill'])->name('notification.apar-refill');
+    Route::get('apar-rusak', [SendMailController::class, 'aparRusak'])->name('notification.apar-rusak');
 });

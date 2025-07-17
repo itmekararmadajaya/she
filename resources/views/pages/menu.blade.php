@@ -27,7 +27,7 @@
                 <span class="fw-semibold text-dark small">Inspeksi</span>
               </div>
             </a>
-            <a href="{{route('apar.user.laporan.yearly')}}" class="text-decoration-none">
+            <a href="{{route('apar.user.laporan.yearly-index')}}" class="text-decoration-none">
               <div class="d-flex flex-column align-items-center text-center rounded hover-shadow transition">
                 <div class="rounded-circle d-flex align-items-center justify-content-center mb-2"
                      style="width: 56px; height: 56px; background-color: #4CAF50;">
