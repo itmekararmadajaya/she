@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'Tambah Gedung')
+@section('title', 'Tambah Area')
 
 @section('content')
 <div class="card col-md-4">
     <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
-            <h1 class="mb-0 h3">Tambah Gedung</h1>
+            <h1 class="mb-0 h3">Tambah Area</h1>
         </div>
     </div>
     <div class="card-body">
@@ -18,7 +18,7 @@
                     <div class="form-group mb-3">
                         <label for="nama">Nama</label>
                         <input type="text" name="nama" class="form-control @error('nama') is-invalid @enderror"
-                            id="nama" value="{{ old('nama') }}" placeholder="Nama gedung">
+                            id="nama" value="{{ old('nama') }}" placeholder="Nama Area">
                         @error('nama')
                         <div class="invalid-feedback">{{ $message }}</div>
                         @enderror

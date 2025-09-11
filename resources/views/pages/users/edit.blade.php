@@ -25,6 +25,16 @@
                         @enderror
                     </div>
 
+                    {{-- NIK --}}
+                    <div class="form-group mb-3">
+                        <label for="nik">NIK</label>
+                        <input type="text" name="nik" class="form-control @error('nik') is-invalid @enderror"
+                            id="nik" value="{{ old('nik', $user->nik ?? '') }}" placeholder="Masukkan NIK 10 digit">
+                        @error('nik')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
                     {{-- Email --}}
                     <div class="form-group mb-3">
                         <label for="email">Email</label>
@@ -38,11 +48,28 @@
                     {{-- Password --}}
                     <div class="form-group mb-3">
                         <label for="password">Password</label>
-                        <input type="password" name="password" class="form-control @error('password') is-invalid @enderror"
-                            id="password" placeholder="Password">
-                        @error('password')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
+                        <div class="input-group">
+                            <input type="password" name="password" id="password" class="form-control @error('password') is-invalid @enderror"
+                                placeholder="Isi password">
+                            <button type="button" class="btn btn-outline-secondary" id="togglePassword">
+                                <i class="fa fa-eye"></i>
+                            </button>
+                            @error('password')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+
+                    {{-- Password Confirmation --}}
+                    <div class="form-group mb-3">
+                        <label for="password_confirmation">Konfirmasi Password</label>
+                        <div class="input-group">
+                            <input type="password" name="password_confirmation" id="password_confirmation" class="form-control"
+                                placeholder="Ulangi password">
+                            <button type="button" class="btn btn-outline-secondary" id="togglePasswordConfirmation">
+                                <i class="fa fa-eye"></i>
+                            </button>
+                        </div>
                     </div>
 
                     {{-- Role --}}
@@ -68,4 +95,30 @@
         </div>
     </div>
 </div>
+
+@push('scripts')
+<script>
+    // Toggle Password
+    const togglePassword = document.getElementById('togglePassword');
+    const password = document.getElementById('password');
+
+    togglePassword.addEventListener('click', function () {
+        const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+        password.setAttribute('type', type);
+        this.querySelector('i').classList.toggle('fa-eye-slash');
+        this.querySelector('i').classList.toggle('fa-eye');
+    });
+
+    // Toggle Password Confirmation
+    const togglePasswordConfirmation = document.getElementById('togglePasswordConfirmation');
+    const passwordConfirmation = document.getElementById('password_confirmation');
+
+    togglePasswordConfirmation.addEventListener('click', function () {
+        const type = passwordConfirmation.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordConfirmation.setAttribute('type', type);
+        this.querySelector('i').classList.toggle('fa-eye-slash');
+        this.querySelector('i').classList.toggle('fa-eye');
+    });
+</script>
+@endpush
 @endsection

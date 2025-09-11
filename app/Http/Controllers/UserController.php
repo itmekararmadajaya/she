@@ -44,6 +44,7 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $request->validate([
+            'nik'      => 'required|digits_between:1,10|unique:users,nik',
             'name'     => 'required|string|max:255',
             'email'    => 'required|email|unique:users,email',
             'password' => 'required|min:6',
@@ -51,6 +52,7 @@ class UserController extends Controller
         ]);
 
         $user = User::create([
+            'nik'      => $request->nik,
             'name'     => $request->name,
             'email'    => $request->email,
             'password' => Hash::make($request->password),
@@ -89,12 +91,14 @@ class UserController extends Controller
     public function update(Request $request, User $user)
     {
         $request->validate([
+            'nik'      => 'required|digits_between:1,10|unique:users,nik,' . $user->id,
             'name'  => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $user->id,
             'password' => 'nullable|min:6|confirmed',
             'role'  => 'required|string|exists:roles,name',
         ]);
 
+        $user->nik  = $request->nik;
         $user->name = $request->name;
         $user->email = $request->email;
 

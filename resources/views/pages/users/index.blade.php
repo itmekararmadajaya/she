@@ -3,7 +3,7 @@
 @section('title', 'Users')
 
 @section('content')
-<div class="card">
+<div class="card card-custom-rounded">
     <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
             <h1 class="mb-0 h3">Users</h1>

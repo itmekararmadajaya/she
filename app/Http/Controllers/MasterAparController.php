@@ -2,8 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Gedung;
+// Pastikan semua model yang digunakan diimpor di sini
 use App\Models\MasterApar;
+use App\Models\Gedung;
+use App\Models\JenisIsi;
+use App\Models\JenisPemadam;
+use App\Models\vendor;
+use App\Models\AparInspection;
+use Carbon\Carbon;
 use Endroid\QrCode\QrCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
@@ -12,34 +18,124 @@ use Endroid\QrCode\Color\Color;
 use Endroid\QrCode\Encoding\Encoding;
 use Endroid\QrCode\ErrorCorrectionLevel;
 use Endroid\QrCode\RoundBlockSizeMode;
+use App\Models\Kebutuhan;
+use App\Models\Transaksi;
+use App\Models\HargaKebutuhan;
 
 class MasterAparController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Menampilkan daftar master APAR.
      */
     public function index(Request $request)
     {
         $apars = MasterApar::with('gedung')
-        ->when($request->kode, fn($q) => $q->where('kode', 'like', '%' . $request->kode . '%'))
-        ->when($request->gedung_id, fn($q) => $q->where('gedung_id', $request->gedung_id))
-        ->when($request->lokasi, fn($q) => $q->where('lokasi', 'like', '%' . $request->lokasi . '%'))
-        ->where('is_active', true)
-        ->latest()
-        ->paginate(10)
-        ->withQueryString();
+            ->when($request->kode, fn($q) => $q->where('kode', 'like', '%' . $request->kode . '%'))
+            ->when($request->gedung_id, fn($q) => $q->where('gedung_id', $request->gedung_id))
+            ->when($request->lokasi, fn($q) => $q->where('lokasi', 'like', '%' . $request->lokasi . '%'))
+            ->latest()
+            ->paginate(10)
+            ->withQueryString();
 
         $gedungs = Gedung::all();
         return view('pages.master_apar.index', compact('apars', 'gedungs'));
     }
 
     /**
+     * Menampilkan laporan APAR rusak dengan filter tanggal.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\View\View
+     */
+    public function laporanAparRusakIndex(Request $request)
+    {
+        $query = AparInspection::query();
+
+        // Filter data APAR yang kondisinya "NOT GOOD"
+        $query->whereHas('details', function ($query) {
+            $query->where('value', '!=', 'B');
+        });
+
+        // Terapkan filter tanggal jika input terisi
+        if ($request->filled(['start_date', 'end_date'])) {
+            $startDate = Carbon::parse($request->input('start_date'))->startOfDay();
+            $endDate = Carbon::parse($request->input('end_date'))->endOfDay();
+            $query->whereBetween('date', [$startDate, $endDate]);
+        }
+
+        // Ambil data dengan eager loading relasi untuk performa yang lebih baik
+        $aparInspections = $query->with([
+            'masterApar.gedung',
+            'details.itemCheck',
+            'user'
+        ])->orderBy('date', 'desc')->get();
+
+        // Hitung total data
+        $totalData = $aparInspections->count();
+
+        // Kirimkan data ke view (rusak.blade.php)
+        return view('laporan.apar.rusak', compact('aparInspections', 'totalData'));
+    }
+
+    /**
+     * Tampilkan halaman riwayat inspeksi.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function riwayatInspeksi(Request $request)
+    {
+        $request->validate([
+            'start_date' => 'nullable|date_format:Y-m-d',
+            'end_date' => 'nullable|date_format:Y-m-d|after_or_equal:start_date',
+        ]);
+
+        $query = AparInspection::with(['masterApar.gedung', 'user', 'details.itemCheck']);
+
+        // Menerapkan filter tanggal jika ada
+        if ($request->filled(['start_date', 'end_date'])) {
+            $startDate = Carbon::parse($request->input('start_date'))->startOfDay();
+            $endDate = Carbon::parse($request->input('end_date'))->endOfDay();
+            $query->whereBetween('date', [$startDate, $endDate]);
+        }
+        
+        \Log::info('Filter applied - Start Date: ' . $request->input('start_date') . ', End Date: ' . $request->input('end_date'));
+
+        $aparInspections = $query->latest()->paginate(10)->withQueryString();
+        return view('pages.riwayat_inspeksi.index', compact('aparInspections'));
+    }
+
+    /**
      * Show the form for creating a new resource.
      */
+    public function refillReport(Request $request)
+    {
+        $expiredApar = MasterApar::with('gedung')
+            ->whereDate('tgl_kadaluarsa', '<', Carbon::now())
+            ->get();
+        
+        $expiringSoonApar = MasterApar::with('gedung')
+            ->whereDate('tgl_kadaluarsa', '>=', Carbon::now())
+            ->whereDate('tgl_kadaluarsa', '<=', Carbon::now()->addDays(30))
+            ->get();
+        
+        $expiredApars = $expiredApar->merge($expiringSoonApar)->sortBy('tgl_kadaluarsa');
+        $totalData = $expiredApars->count();
+        
+        return view('pages.laporan.apar.refill', compact('expiredApar', 'expiringSoonApar', 'expiredApars', 'totalData'));
+    }
+
     public function create()
     {
         $gedungs = Gedung::all();
-        return view('pages.master_apar.create', compact('gedungs'));
+        $jenisIsis = JenisIsi::all();
+        $jenisPemadams = JenisPemadam::all();
+        
+        // Tambahkan baris ini untuk mengambil data vendor dari database
+        $vendors = Vendor::all(); 
+
+        // Kirimkan semua data ke view
+        return view('pages.master_apar.create', compact('gedungs', 'jenisIsis', 'jenisPemadams', 'vendors'));
     }
 
     /**
@@ -47,22 +143,90 @@ class MasterAparController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'kode' => 'required|string|max:4|unique:master_apars,kode',
-            'jenis_pemadam' => 'required|string',
-            'jenis_isi' => 'required|string',
-            'ukuran' => 'required|integer',
-            'satuan' => 'required|string|max:2',
-            'gedung_id' => 'required|exists:gedungs,id',
-            'lokasi' => 'required|string',
-            'tgl_kadaluarsa' => 'required|date',
-            'tanda' => 'required|string',
-            'catatan' => 'nullable|string',
-            'tgl_refill' => 'required|date',
-            'keterangan' => 'required|string',
-        ]);
+        \Log::debug('Logging test at ' . now());
+        \Log::info('Store method called at ' . now() . '. Request data: ', $request->all());
 
-        MasterApar::create($request->all());
+        try {
+            echo "Validating data...<br>";
+            $validated = $request->validate([
+                'kode' => 'required|string|max:8|unique:master_apars,kode',
+                'gedung_id' => 'required|exists:gedungs,id',
+                'lokasi' => 'required|string',
+                'tgl_kadaluarsa' => 'required|date',
+                'ukuran' => 'required|numeric',
+                'satuan' => 'required|string',
+                'jenis_isi_id' => 'required|exists:jenis_isis,id',
+                'jenis_pemadam_id' => 'required|exists:jenis_pemadams,id',
+                'catatan' => 'nullable|string|max:255',
+                'is_new_apar' => 'nullable|boolean',
+                'vendor_id' => 'nullable|required_if:is_new_apar,1|exists:vendors,id', // Tambahkan 'nullable'
+                'tanggal_pembelian' => 'nullable|required_if:is_new_apar,1|date',
+            ]);
+
+            echo "Creating MasterApar...<br>";
+            $apar = MasterApar::create([
+                'kode' => $validated['kode'],
+                'gedung_id' => $validated['gedung_id'],
+                'lokasi' => $validated['lokasi'],
+                'tgl_kadaluarsa' => $validated['tgl_kadaluarsa'],
+                'ukuran' => $validated['ukuran'],
+                'satuan' => $validated['satuan'],
+                'jenis_isi_id' => $validated['jenis_isi_id'],
+                'jenis_pemadam_id' => $validated['jenis_pemadam_id'],
+                'catatan' => $validated['catatan'],
+                'is_active' => true,
+                'vendor_id' => $request->has('is_new_apar') ? $validated['vendor_id'] : null,
+                'tanggal_pembelian' => $request->has('is_new_apar') ? $validated['tanggal_pembelian'] : null,
+            ]);
+
+            \Log::info('MasterApar created successfully. ID: ' . $apar->id . ', Kode: ' . $apar->kode);
+
+            if ($request->has('is_new_apar')) {
+                echo "Processing APAR BARU...<br>";
+                \Log::info('APAR BARU detected. Processing transaction. Request: ', $request->only('vendor_id', 'tanggal_pembelian'));
+
+                $kebutuhan = Kebutuhan::where('kebutuhan', 'Beli Baru')->first();
+                if (!$kebutuhan) {
+                    \Log::error('Kebutuhan "Beli Baru" not found in kebutuhans table. All records: ', Kebutuhan::all()->toArray());
+                    return back()->withInput()->withErrors(['kebutuhan_id' => 'Jenis kebutuhan "Beli Baru" tidak tersedia.']);
+                }
+                \Log::info('Kebutuhan ID found: ' . $kebutuhan->id);
+
+                $biaya = HargaKebutuhan::where('vendor_id', $validated['vendor_id'])
+                                    ->where('kebutuhan_id', $kebutuhan->id)
+                                    ->where('jenis_pemadam_id', $validated['jenis_pemadam_id'])
+                                    ->where('jenis_isi_id', $validated['jenis_isi_id'])
+                                    ->first();
+                if (!$biaya) {
+                    \Log::error('No matching biaya found. Query params: ', [
+                        'vendor_id' => $validated['vendor_id'],
+                        'kebutuhan_id' => $kebutuhan->id,
+                        'jenis_pemadam_id' => $validated['jenis_pemadam_id'],
+                        'jenis_isi_id' => $validated['jenis_isi_id'],
+                    ]);
+                    return back()->withInput()->withErrors(['biaya' => 'Kombinasi Vendor/Jenis Pemadam/Jenis Isi tidak memiliki harga yang terdaftar.']);
+                }
+                \Log::info('Biaya ID found: ' . $biaya->id);
+
+                $transaction = Transaksi::create([
+                    'master_apar_id' => $apar->id,
+                    'vendor_id' => $validated['vendor_id'],
+                    'kebutuhan_id' => $kebutuhan->id,
+                    'biaya_id' => $biaya->id,
+                    'tanggal_pembelian' => $validated['tanggal_pembelian'],
+                    'tanggal_pelunasan' => null,
+                ]);
+
+                \Log::info('Transaction created successfully. ID: ' . $transaction->id . ', Data: ' . json_encode($transaction->toArray()));
+            } else {
+                echo "APAR BARU not detected, skipping transaction.<br>";
+                \Log::info('APAR BARU not detected. Skipping transaction creation.');
+            }
+        } catch (\Exception $e) {
+            \Log::error('Exception during store process: ' . $e->getMessage());
+            echo "Error: " . $e->getMessage() . "<br>";
+            return back()->withInput()->withErrors(['error' => 'Gagal menyimpan data. Error: ' . $e->getMessage()]);
+        }
 
         return redirect()->route('master-apar.index')->with('success', 'Data APAR berhasil ditambahkan');
     }
@@ -80,8 +244,15 @@ class MasterAparController extends Controller
      */
     public function edit(MasterApar $masterApar)
     {
+        // Eager load relasi jenis_isi dan jenis_pemadam untuk mencegah error "Attempt to read property 'jenis_isi' on null" di view
+        $masterApar->load('jenisIsi', 'jenisPemadam');
+
         $gedungs = Gedung::all();
-        return view('pages.master_apar.edit', compact('masterApar', 'gedungs'));
+        // Mengambil semua data jenis isi dan jenis pemadam
+        $jenisIsis = JenisIsi::all();
+        $jenisPemadams = JenisPemadam::all();
+        // Meneruskan data ke view
+        return view('pages.master_apar.edit', compact('masterApar', 'gedungs', 'jenisIsis', 'jenisPemadams'));
     }
 
     /**
@@ -90,18 +261,15 @@ class MasterAparController extends Controller
     public function update(Request $request, MasterApar $masterApar)
     {
         $request->validate([
-            'kode' => 'required|string|max:4|unique:master_apars,kode,'.$masterApar->id,
-            'jenis_pemadam' => 'required|string',
-            'jenis_isi' => 'required|string',
-            'ukuran' => 'required|integer',
-            'satuan' => 'required|string|max:2',
+            'kode' => 'required|string|max:8|unique:master_apars,kode,'.$masterApar->id,
             'gedung_id' => 'required|exists:gedungs,id',
             'lokasi' => 'required|string',
             'tgl_kadaluarsa' => 'required|date',
-            'tanda' => 'required|string',
-            'catatan' => 'nullable|string',
-            'tgl_refill' => 'required|date',
-            'keterangan' => 'required|string',
+            'ukuran' => 'required|numeric',
+            'satuan' => 'required|string',
+            'jenis_isi_id' => 'required|exists:jenis_isis,id', // Diperbaiki: Menggunakan ID
+            'jenis_pemadam_id' => 'required|exists:jenis_pemadams,id', // Diperbaiki: Menggunakan ID
+            'catatan' => 'nullable|string|max:255',
         ]);
 
         $masterApar->update($request->all());
@@ -114,8 +282,8 @@ class MasterAparController extends Controller
      */
     public function destroy(MasterApar $masterApar)
     {
-        $masterApar->update(['is_active' => false]); // soft delete
-        return redirect()->route('master-apar.index')->with('success', 'Data APAR berhasil dinonaktifkan');
+        $masterApar->delete(); // Hard delete
+        return redirect()->route('master-apar.index')->with('success', 'Data APAR berhasil dihapus');
     }
 
     public function restore($id)
@@ -152,5 +320,136 @@ class MasterAparController extends Controller
                 'Content-Disposition' => 'attachment; filename="qr-apar-'.$apar->kode.'.png"',
             ]
         );
+    }
+
+    // Tambahkan di dalam class MasterAparController
+    public function showQrCode($id)
+    {
+        $apar = MasterApar::findOrFail($id);
+
+        // Buat data yang akan di-encode ke dalam QR Code
+        $qrData = json_encode([
+            'kode' => $apar->kode,
+            'lokasi' => $apar->lokasi,
+        ]);
+
+        // Buat QR code
+        $writer = new PngWriter();
+        $qrCode = new QrCode(
+            data: $qrData,
+            encoding: new Encoding('UTF-8'),
+            errorCorrectionLevel: ErrorCorrectionLevel::Low,
+            size: 500,
+            margin: 10,
+            roundBlockSizeMode: RoundBlockSizeMode::Margin,
+            foregroundColor: new Color(0, 0, 0),
+            backgroundColor: new Color(255, 255, 255)
+        );
+
+        // Dapatkan data QR code dalam format string Base64
+        $qrCodeDataUri = $writer->write($qrCode)->getDataUri();
+
+        // Kirim data ke view
+        return view('pages.master_apar.show_qr', compact('apar', 'qrCodeDataUri'));
+    }
+
+    public function downloadQr($id)
+    {
+        $apar = MasterApar::with('gedung')->findOrFail($id);
+        $writer = new PngWriter();
+        $qrData = route('public.apar.history', ['kode' => $apar->kode]); // Ubah ke kode
+        $qrCode = new QrCode(
+            data: $qrData,
+            encoding: new Encoding('UTF-8'),
+            errorCorrectionLevel: ErrorCorrectionLevel::Low,
+            size: 500,
+            margin: 10,
+            roundBlockSizeMode: RoundBlockSizeMode::Margin,
+            foregroundColor: new Color(0, 0, 0),
+            backgroundColor: new Color(255, 255, 255)
+        );
+        $qrCodeData = $writer->write($qrCode)->getString();
+
+        $qrImage = imagecreatefromstring($qrCodeData);
+        $qrWidth = imagesx($qrImage);
+        $qrHeight = imagesy($qrImage);
+
+        $fontSize = 30;
+        $padding = 30;
+        $textHeight = $fontSize * 3;
+        $imageHeight = $qrHeight + $textHeight + $padding;
+        $imageWidth = $qrWidth;
+
+        $finalImage = imagecreatetruecolor($imageWidth, $imageHeight);
+        $white = imagecolorallocate($finalImage, 255, 255, 255);
+        $black = imagecolorallocate($finalImage, 0, 0, 0);
+
+        imagefill($finalImage, 0, 0, $white);
+        imagecopy($finalImage, $qrImage, 0, 0, 0, 0, $qrWidth, $qrHeight);
+        imagedestroy($qrImage);
+
+        $textKode = $apar->kode;
+        $textLokasi = $apar->gedung->nama . " - " . $apar->lokasi;
+        $fontPath = public_path('fonts/Arial.ttf');
+
+        $bboxKode = imagettfbbox($fontSize, 0, $fontPath, $textKode);
+        $textWidthKode = $bboxKode[2] - $bboxKode[0];
+        $xKode = ($imageWidth - $textWidthKode) / 2;
+        $yKode = $qrHeight + $padding + 10;
+        imagettftext($finalImage, $fontSize, 0, $xKode, $yKode, $black, $fontPath, $textKode);
+
+        $bboxLokasi = imagettfbbox($fontSize, 0, $fontPath, $textLokasi);
+        $textWidthLokasi = $bboxLokasi[2] - $bboxLokasi[0];
+        $xLokasi = ($imageWidth - $textWidthLokasi) / 2;
+        $yLokasi = $yKode + $fontSize + 20;
+        imagettftext($finalImage, $fontSize, 0, $xLokasi, $yLokasi, $black, $fontPath, $textLokasi);
+
+        ob_start();
+        imagepng($finalImage);
+        $imageContent = ob_get_clean();
+        imagedestroy($finalImage);
+
+        return Response::make(
+            $imageContent,
+            200,
+            [
+                'Content-Type' => 'image/png',
+                'Content-Disposition' => 'attachment; filename="qr-apar-' . $apar->kode . '.png"',
+            ]
+        );
+    }
+
+    /**
+     * Menangani pemindaian QR code untuk mengarahkan pengguna.
+     * Menggunakan kode APAR yang diambil dari QR code.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @param string $kode Kode APAR yang dipindai.
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function handleQrScan(Request $request, $kode)
+    {
+        $isFromApp = $request->header('X-App-Access');
+        
+        if ($isFromApp) {
+            // Find APAR by kode and fail if not found
+            $apar = MasterApar::where('kode', $kode)->firstOrFail();
+            return redirect()->route('inspeksi.form', ['apar_id' => $apar->id]);
+        } else {
+            return redirect()->route('public.apar.history', ['kode' => $kode]);
+        }
+    }
+    
+    // Metode baru untuk mendapatkan ukuran berdasarkan kode APAR
+    public function getUkuran($id)
+    {
+        $apar = MasterApar::find($id);
+
+        if (!$apar) {
+            return response()->json(['error' => 'APAR tidak ditemukan'], 404);
+        }
+
+        // Asumsi kolom ukuran adalah 'ukuran' di tabel master_apars
+        return response()->json($apar->ukuran);
     }
 }

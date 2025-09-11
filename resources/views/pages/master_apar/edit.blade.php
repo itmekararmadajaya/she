@@ -3,139 +3,185 @@
 @section('title', 'Edit APAR')
 
 @section('content')
+
 <div class="card">
-    <div class="card-header">
-        <div class="d-flex justify-content-between align-items-center">
-            <h1 class="mb-0 h3">Edit APAR</h1>
-        </div>
-    </div>
-    <div class="card-body">
-        <div>
-            <form method="POST" action="{{route('master-apar.update', $masterApar)}}">
-                @csrf
-                @method('PUT')
-                <div class="row">
-                    <div class="form-group mb-3 col-md-3">
-                        <label for="kode">Kode</label>
-                        <input type="text" name="kode" class="form-control @error('kode') is-invalid @enderror"
-                            id="kode" value="{{ $masterApar->kode }}" placeholder="Kode APAR">
-                        @error('kode')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    <div class="form-group mb-3 col-md-3">
-                        <label for="role">Gedung</label>
-                        <select name="gedung_id" class="form-control @error('gedung_id') is-invalid @enderror">
-                            @foreach ($gedungs as $gedung)
-                            <option value="{{ $gedung->id }}" {{ $masterApar->gedung_id == $gedung->id ? 'selected' : '' }}>
+<div class="card-header">
+<div class="d-flex justify-content-between align-items-center">
+<h1 class="h3 mb-0">Edit APAR</h1>
+</div>
+</div>
+<div class="card-body">
+<form method="POST" action="{{ route('master-apar.update', $masterApar) }}">
+@csrf
+@method('PUT')
+<div class="row">
+<!-- Kode APAR -->
+<div class="col-md-3 mb-3">
+<div class="form-group">
+<label for="kode">Kode</label>
+<input type="text"
+name="kode"
+id="kode"
+class="form-control @error('kode') is-invalid @enderror"
+value="{{ old('kode', $masterApar->kode) }}"
+placeholder="Kode APAR">
+@error('kode')
+<div class="invalid-feedback">{{ $message }}</div>
+@enderror
+</div>
+</div>
+
+            <!-- Gedung -->
+            <div class="col-md-3 mb-3">
+                <div class="form-group">
+                    <label for="gedung_id">Gedung</label>
+                    <select name="gedung_id" 
+                            class="form-control @error('gedung_id') is-invalid @enderror"
+                            required>
+                        <option value="">Pilih Gedung</option>
+                        @foreach ($gedungs as $gedung)
+                            <option value="{{ $gedung->id }}" 
+                                    {{ $masterApar->gedung_id == $gedung->id ? 'selected' : '' }}>
                                 {{ $gedung->nama }}
                             </option>
-                            @endforeach
-                        </select>
-                        @error('gedung_id')
+                        @endforeach
+                    </select>
+                    @error('gedung_id')
                         <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    <div class="form-group mb-3 col-md-3">
-                        <label for="kode">Lokasi</label>
-                        <input type="text" name="lokasi" class="form-control @error('lokasi') is-invalid @enderror"
-                            id="lokasi" value="{{ $masterApar->lokasi }}" placeholder="Lokasi APAR">
-                        @error('lokasi')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    <div class="form-group mb-3 col-md-3">
-                        <label for="role">Jenis Isi</label>
-                        <select name="jenis_isi" class="form-control @error('jenis_isi') is-invalid @enderror">
-                            <option value="">Pilih jenis isi</option>
-                            <option value="Powder" {{ $masterApar->jenis_isi == 'Powder' ? 'selected' : '' }}>Powder</option>
-                            <option value="CO2" {{ $masterApar->jenis_isi == 'CO2' ? 'selected' : '' }}>CO2</option>
-                            <option value="Foam" {{ $masterApar->jenis_isi == 'Foam' ? 'selected' : '' }}>Foam</option>
-                            <option value="HCFC" {{ $masterApar->jenis_isi == 'HCFC' ? 'selected' : '' }}>HCFC</option>
-                        </select>
-                        @error('jenis_isi')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    <div class="form-group mb-3 col-md-3">
-                        <label for="kode">Ukuran</label>
-                        <input type="number" name="ukuran" class="form-control @error('ukuran') is-invalid @enderror"
-                            id="ukuran" value="{{ $masterApar->ukuran }}" placeholder="Ukuran APAR">
-                        @error('ukuran')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    <div class="form-group mb-3 col-md-3">
-                        <label for="kode">Satuan</label>
-                        <select name="satuan" class="form-control @error('satuan') is-invalid @enderror">
-                            <option value="">Pilih satuan</option>
-                            <option value="KG" {{ $masterApar->satuan == 'KG' ? 'selected' : '' }}>KG</option>
-                        </select>
-                        @error('satuan')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    <div class="form-group mb-3 col-md-3">
-                        <label for="kode">Tgl Kadaluarsa</label>
-                        <input type="date" name="tgl_kadaluarsa" class="form-control @error('tgl_kadaluarsa') is-invalid @enderror"
-                            id="tgl_kadaluarsa" value="{{ $masterApar->tgl_kadaluarsa }}" placeholder="Tgl kadaluarsa APAR">
-                        @error('tgl_kadaluarsa')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    <div class="form-group mb-3 col-md-3">
-                        <label for="role">Jenis Pemadam</label>
-                        <select name="jenis_pemadam" class="form-control @error('jenis_pemadam') is-invalid @enderror">
-                            <option value="">Pilih jenis pemadam</option>
-                            <option value="APAR" {{ $masterApar->jenis_pemadam == 'APAR' ? 'selected' : '' }}>APAR</option>
-                            <option value="EXP" {{ $masterApar->jenis_pemadam == 'EXP' ? 'selected' : '' }}>EXP</option>
-                            <option value="APAB" {{ $masterApar->jenis_pemadam == 'APAB' ? 'selected' : '' }}>APAB</option>
-                            <option value="ADA" {{ $masterApar->jenis_pemadam == 'ADA' ? 'selected' : '' }}>ADA</option>
-                        </select>
-                        @error('jenis_pemadam')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    <div class="form-group mb-3 col-md-3">
-                        <label for="role">Tanda</label>
-                        <select name="tanda" class="form-control @error('tanda') is-invalid @enderror">
-                            <option value="">Pilih tanda</option>
-                            <option value="ADA" {{ $masterApar->tanda == 'ADA' ? 'selected' : '' }}>ADA</option>
-                            <option value="TIDAK ADA" {{ $masterApar->tanda == 'TIDAK ADA' ? 'selected' : '' }}>TIDAK ADA</option>
-                        </select>
-                        @error('tanda')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    <div class="form-group mb-3 col-md-3">
-                        <label for="kode">Catatan</label>
-                        <input type="text" name="catatan" class="form-control @error('catatan') is-invalid @enderror"
-                            id="catatan" value="{{ $masterApar->catatan }}" placeholder="Catatan APAR">
-                        @error('catatan')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    <div class="form-group mb-3 col-md-3">
-                        <label for="kode">Tgl Refill</label>
-                        <input type="date" name="tgl_refill" class="form-control @error('tgl_refill') is-invalid @enderror"
-                            id="tgl_refill" value="{{ $masterApar->tgl_refill }}" placeholder="Tgl refill APAR">
-                        @error('tgl_refill')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    <div class="form-group mb-3 col-md-3">
-                        <label for="kode">Keterangan</label>
-                        <input type="text" name="keterangan" class="form-control @error('keterangan') is-invalid @enderror"
-                            id="keterangan" value="{{ $masterApar->keterangan }}" placeholder="Keterangan APAR">
-                        @error('keterangan')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
+                    @enderror
                 </div>
-                <button type="submit" class="btn btn-primary">Simpan</button>
-                <a href="{{route('master-apar.index')}}" class="btn btn-light">Kembali</a>
-            </form>
+            </div>
+
+            <!-- Lokasi -->
+            <div class="col-md-3 mb-3">
+                <div class="form-group">
+                    <label for="lokasi">Lokasi</label>
+                    <input type="text" 
+                           name="lokasi" 
+                           id="lokasi" 
+                           class="form-control @error('lokasi') is-invalid @enderror"
+                           value="{{ old('lokasi', $masterApar->lokasi) }}" 
+                           placeholder="Lokasi APAR">
+                    @error('lokasi')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+            </div>
+
+            <!-- Jenis Isi -->
+            <div class="col-md-3 mb-3">
+                <div class="form-group">
+                    <label for="jenis_isi_id">Jenis Isi</label>
+                    <select name="jenis_isi_id" 
+                            class="form-control @error('jenis_isi_id') is-invalid @enderror"
+                            required>
+                        <option value="">Pilih Jenis Isi</option>
+                        @foreach ($jenisIsis as $jenisIsi)
+                            <option value="{{ $jenisIsi->id }}" {{ $masterApar->jenis_isi_id == $jenisIsi->id ? 'selected' : '' }}>
+                                {{ $jenisIsi->jenis_isi }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('jenis_isi_id')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+            </div>
         </div>
-    </div>
+
+        <div class="row">
+            <!-- Ukuran -->
+            <div class="col-md-3 mb-3">
+                <div class="form-group">
+                    <label for="ukuran">Ukuran</label>
+                    <input type="number" 
+                           name="ukuran" 
+                           id="ukuran" 
+                           class="form-control @error('ukuran') is-invalid @enderror"
+                           value="{{ old('ukuran', $masterApar->ukuran) }}" 
+                           placeholder="Ukuran APAR">
+                    @error('ukuran')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+            </div>
+
+            <!-- Satuan -->
+            <div class="col-md-3 mb-3">
+                <div class="form-group">
+                    <label for="satuan">Satuan</label>
+                    <select name="satuan" 
+                            class="form-control @error('satuan') is-invalid @enderror"
+                            required>
+                        <option value="">Pilih satuan</option>
+                        <option value="KG" {{ $masterApar->satuan == 'KG' ? 'selected' : '' }}>KG</option>
+                        <option value="Liter" {{ $masterApar->satuan == 'Liter' ? 'selected' : '' }}>Liter</option>
+                    </select>
+                    @error('satuan')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+            </div>
+
+            <!-- Tgl Kadaluarsa -->
+            <div class="col-md-3 mb-3">
+                <div class="form-group">
+                    <label for="tgl_kadaluarsa">Tgl Kadaluarsa</label>
+                    <input type="date" 
+                           name="tgl_kadaluarsa" 
+                           id="tgl_kadaluarsa" 
+                           class="form-control @error('tgl_kadaluarsa') is-invalid @enderror"
+                           value="{{ old('tgl_kadaluarsa', $masterApar->tgl_kadaluarsa) }}" 
+                           placeholder="Tgl kadaluarsa APAR">
+                    @error('tgl_kadaluarsa')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+            </div>
+
+            <!-- Jenis Pemadam -->
+            <div class="col-md-3 mb-3">
+                <div class="form-group">
+                    <label for="jenis_pemadam_id">Jenis Pemadam</label>
+                    <select name="jenis_pemadam_id" 
+                            class="form-control @error('jenis_pemadam_id') is-invalid @enderror"
+                            required>
+                        <option value="">Pilih Jenis Pemadam</option>
+                        @foreach ($jenisPemadams as $jenisPemadam)
+                            <option value="{{ $jenisPemadam->id }}" {{ $masterApar->jenis_pemadam_id == $jenisPemadam->id ? 'selected' : '' }}>
+                                {{ $jenisPemadam->jenis_pemadam }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('jenis_pemadam_id')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+            </div>
+
+            <!-- Catatan -->
+            <div class="col-md-3 mb-3">
+                <div class="form-group">
+                    <label for="catatan">Catatan (Tidak Wajib)</label>
+                    <input type="text" 
+                           name="catatan" 
+                           id="catatan" 
+                           class="form-control @error('catatan') is-invalid @enderror"
+                           value="{{ old('catatan', $masterApar->catatan) }}" 
+                           placeholder="Catatan">
+                    @error('catatan')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-3">
+            <button type="submit" class="btn btn-primary">Simpan</button>
+            <a href="{{ route('master-apar.index') }}" class="btn btn-light">Kembali</a>
+        </div>
+    </form>
+</div>
+
 </div>
 @endsection

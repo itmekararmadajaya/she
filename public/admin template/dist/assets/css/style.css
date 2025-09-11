@@ -12,8 +12,8 @@ File: style.css
   --bs-body-bg-rgb: 255, 255, 255;
   --pc-heading-color: #1d2630;
   --pc-active-background: #f3f5f7;
-  --pc-sidebar-background: #3f4d67;
-  --pc-sidebar-color: #a9b7d0;
+  --pc-sidebar-background:#1f2937;
+  --pc-sidebar-color: #fff;
   --pc-sidebar-color-rgb: 169, 183, 208;
   --pc-sidebar-active-color: #0d6efd;
   --pc-sidebar-active-background: rgba(0, 0, 0, 0.1);
@@ -22,7 +22,7 @@ File: style.css
   --pc-sidebar-caption-color: #e8edf7;
   --pc-sidebar-border: none;
   --pc-header-background: rgba(var(--bs-body-bg-rgb), 0.7);
-  --pc-header-color: #5b6b79;
+  --pc-header-color: #1f2937;
   --pc-header-shadow: none;
   --pc-card-box-shadow: 0 1px 20px 0 rgba(69, 90, 100, 0.08);
   --pc-header-submenu-background: #ffffff;
@@ -30,8 +30,8 @@ File: style.css
 }
 
 [data-pc-sidebar_theme=true] {
-  --pc-sidebar-background: #fff;
-  --pc-sidebar-color: #3f4d67;
+  --pc-sidebar-background:  #1f2937;
+  --pc-sidebar-color: #fff;
   --pc-sidebar-color-rgb: 63, 77, 103;
   --pc-sidebar-active-color: #0d6efd;
   --pc-sidebar-active-background: rgba(0, 0, 0, 0.04);

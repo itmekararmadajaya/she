@@ -6,6 +6,11 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>@yield('title', 'New Armada')</title>
 
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      integrity="sha512-pO3X1iKkPz6xS3V9g2uBZpZB9lQHhUoyG8t0uR3W1+a0C7zWjpX0M5R3og+N6X6u1xBjOZ9hG1t1Yx5b3VgkzA=="
+      crossorigin="anonymous" referrerpolicy="no-referrer" />
+
     @include('layouts.ui.css')
     <style>
       .swal2-container {

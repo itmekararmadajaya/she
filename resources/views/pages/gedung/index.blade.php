@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'Gedung')
+@section('title', 'Area')
 
 @section('content')
-<div class="card w-50">
+<div class="card w-50 card-custom-rounded">
     <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
-            <h1 class="mb-0 h3">Gedung</h1>
+            <h1 class="mb-0 h3">Area</h1>
             <a href="{{ route('gedung.create') }}" class="btn btn-success">Tambah</a>
         </div>
     </div>
@@ -14,7 +14,7 @@
         <div>
             <form method="GET" action="{{ route('gedung.index') }}" class="d-flex gap-2 align-items-center mb-3">
                 <div class="col-md-5">
-                    <input type="text" name="search" value="{{ request('search') }}" class="form-control" placeholder="Cari nama gedung">
+                    <input type="text" name="search" value="{{ request('search') }}" class="form-control" placeholder="Cari nama Area">
                 </div>
                 <div class="col-md-auto">
                     <button type="submit" class="btn btn-primary">Filter</button>
@@ -99,3 +99,17 @@
         });
     </script>
 @endpush
+
+<style>
+.card-custom-rounded {
+    border-radius: 1rem !important;
+}
+@keyframes scroll-left {
+    0% {
+        transform: translateX(100%);
+    }
+    100% {
+        transform: translateX(-100%);
+    }
+}
+</style>

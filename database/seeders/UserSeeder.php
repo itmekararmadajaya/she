@@ -25,11 +25,11 @@ class UserSeeder extends Seeder
          * Default admin account
          */
         $admin = User::create([
+            'nik' => '1234567890',
             'name' => 'IT Mekar Armada Jaya',
             'email' => 'itmekararmadajaya@gmail.com',
             'password' => Hash::make('password'),
         ]);
 
-        $admin->assignRole('admin');
-    }
+        $admin->assignRole('admin');   }
 }

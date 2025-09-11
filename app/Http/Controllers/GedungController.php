@@ -45,7 +45,7 @@ class GedungController extends Controller
             'nama' => $request->nama,
         ]);
 
-        return redirect()->route('gedung.index')->with('success', 'Gedung berhasil ditambahkan');
+        return redirect()->route('gedung.index')->with('success', 'Area berhasil ditambahkan');
     }
 
     /**
@@ -77,7 +77,7 @@ class GedungController extends Controller
             'nama' => $request->nama,
         ]);
 
-        return redirect()->route('gedung.index')->with('success', 'Gedung berhasil diperbarui');
+        return redirect()->route('gedung.index')->with('success', 'Area berhasil diperbarui');
     }
 
     /**
@@ -86,6 +86,6 @@ class GedungController extends Controller
     public function destroy(Gedung $gedung)
     {
         $gedung->delete();
-        return redirect()->route('gedung.index')->with('success', 'Gedung berhasil dihapus');
+        return redirect()->route('gedung.index')->with('success', 'Area berhasil dihapus');
     }
 }

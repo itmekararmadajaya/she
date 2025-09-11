@@ -25,7 +25,7 @@
 <div class="card">
             <div class="card-body">
                 <div class="text-center">
-                    <h3>Kartu Pemeriksaan APAR</h3>
+                    <h3>Inspeksi Tahunan APAR/APAB</h3>
                 </div>
                 <table style="text-align: left;">
                     <tr>
@@ -37,8 +37,12 @@
                         <td>{{$apar->kode}}</td>
                     </tr>
                     <tr>
+                        <td>Pemadam</td>
+                        <td>{{ $apar->jenisPemadam->jenis_pemadam ?? 'Jenis isi tidak ditemukan' }}</td>
+                    </tr>
+                    <tr>
                         <td>Jenis</td>
-                        <td>{{$apar->jenis_isi}}</td>
+                        <td>{{ $apar->jenisIsi->jenis_isi ?? 'Jenis isi tidak ditemukan' }}</td>
                     </tr>
                     <tr>
                         <td>Ukuran</td>

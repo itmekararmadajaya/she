@@ -3,7 +3,7 @@
 @section('title', 'Inspeksi APAR')
 
 @section('content')
-    <div class="container mt-5">
+    <div class="container mt-5 card-custom-rounded">
         <div class="row justify-content-center">
             <div class="col-12 col-md-6">
             <div class="text-center mb-4">
@@ -106,3 +106,17 @@
         });
     </script>
 @endpush
+
+<style>
+.card-custom-rounded {
+    border-radius: 1rem !important;
+}
+@keyframes scroll-left {
+    0% {
+        transform: translateX(100%);
+    }
+    100% {
+        transform: translateX(-100%);
+    }
+}
+</style>
