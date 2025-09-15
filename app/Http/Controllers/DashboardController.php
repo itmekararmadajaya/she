@@ -7,7 +7,7 @@ use App\Models\MasterApar;
 use App\Models\AparInspection;
 use App\Models\Transaksi;
 use App\Models\AparInspectionDetail;
-use App\Models\Penggunaan; // Import model Penggunaan
+use App\Models\Penggunaan;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -32,9 +32,6 @@ class DashboardController extends Controller
 
         // --- Logika Status APAR (GOOD/NOT GOOD) - Menggunakan data inspeksi terbaru ---
         
-        // 1. Dapatkan ID APAR yang memiliki setidaknya satu item yang 'tidak baik' (NOT GOOD)
-        // Berdasarkan detail inspeksi terbaru. Kami menggunakan subquery untuk menemukan
-        // ID inspeksi terbaru (maksimum ID) untuk setiap master_apar.
         $notGoodAparIds = AparInspectionDetail::where('value', '!=', 'B')
             ->whereIn('apar_inspection_id', function ($query) {
                 $query->select(DB::raw('MAX(id)'))
@@ -45,22 +42,18 @@ class DashboardController extends Controller
             ->distinct()
             ->pluck('apar_inspections.master_apar_id');
 
-        // 2. Dapatkan ID APAR dari tabel Penggunaan dengan status 'NOT GOOD'
         $notGoodPenggunaanIds = Penggunaan::where('status', 'NOT GOOD')
                                          ->pluck('master_apar_id');
         
-        // 3. Gabungkan kedua koleksi ID dan ambil ID unik
         $finalNotGoodAparIds = $notGoodAparIds
                                          ->merge($notGoodPenggunaanIds)
                                          ->unique();
 
-        // 4. Dapatkan semua APAR yang aktif
         $activeAparInGedungs = MasterApar::where('is_active', true)->get()->groupBy('gedung_id');
         
         $dataGood = [];
         $dataNotGood = [];
         
-        // 5. Hitung jumlah GOOD dan NOT GOOD per gedung
         foreach ($gedungs as $gedung) {
             $aparInThisGedung = $activeAparInGedungs->get($gedung->id, collect());
             
@@ -77,7 +70,6 @@ class DashboardController extends Controller
         $totalNotGoodPercentage = ($totalInspections > 0) ? round(($totalNotGood / $totalInspections) * 100) : 0;
         
         // --- LOGIKA NOTIFIKASI KEDALUWARSA ---
-        // Tidak terpengaruh filter tanggal karena ini adalah notifikasi terkini.
         $expiredApar = MasterApar::with('gedung')
             ->where('tgl_kadaluarsa', '<', Carbon::now()->toDateString())
             ->get();
@@ -87,14 +79,13 @@ class DashboardController extends Controller
             ->get();
             
         // --- Logika Notifikasi APAR Belum Diinspeksi Bulan Ini ---
-        // Tidak terpengaruh filter tanggal.
         $currentMonth = Carbon::now()->month;
         $currentYear = Carbon::now()->year;
         $inspectedAparIds = AparInspection::whereMonth('date', $currentMonth)
             ->whereYear('date', $currentYear)
             ->pluck('master_apar_id');
         $uninspectedApars = MasterApar::whereNotIn('id', $inspectedAparIds)
-            ->where('is_active', true) // Filter APAR yang aktif saja
+            ->where('is_active', true)
             ->with('gedung') 
             ->get();
 
@@ -107,7 +98,6 @@ class DashboardController extends Controller
             });
             
         // --- Logika Tabel Rekap Inspeksi Per Area - Dioptimalkan ---
-        // Menggunakan satu query untuk mendapatkan jumlah inspeksi per gedung.
         $inspectionsPerAreaCounts = AparInspection::select('master_apars.gedung_id', DB::raw('count(distinct master_apar_id) as inspected_count'))
             ->join('master_apars', 'apar_inspections.master_apar_id', '=', 'master_apars.id')
             ->whereBetween('apar_inspections.date', [$displayStartDate, $displayEndDate])
@@ -132,21 +122,18 @@ class DashboardController extends Controller
             $totalUninspected += $uninspectedCount;
         }
 
-        // --- MENGHITUNG TOTAL PENGELUARAN (Sesuai dengan logika baru) ---
-        $totalPengeluaran = Transaksi::join('master_apars', 'transaksis.master_apar_id', '=', 'master_apars.id')
-            ->join('harga_kebutuhans', 'transaksis.biaya_id', '=', 'harga_kebutuhans.id')
-            ->whereBetween('transaksis.tanggal_pembelian', [$displayStartDate, $displayEndDate])
-            ->sum(DB::raw('CASE WHEN transaksis.kebutuhan_id IN (1, 2) THEN harga_kebutuhans.biaya * master_apars.ukuran ELSE harga_kebutuhans.biaya END'));
+        // --- MENGHITUNG TOTAL PENGELUARAN (Sesuai permintaan) ---
+        // Mengubah logika menjadi hanya menjumlahkan kolom 'biaya' dari tabel 'transaksis'
+        $totalPengeluaran = Transaksi::whereBetween('tanggal_pembelian', [$displayStartDate, $displayEndDate])
+                                     ->sum('biaya');
 
         // --- LOGIKA GRAFIK KEUANGAN BULANAN (Perbaikan) ---
-        // Mengganti DATE_FORMAT dengan strftime untuk kompatibilitas SQLite
-        $monthlyPengeluaran = Transaksi::join('master_apars', 'transaksis.master_apar_id', '=', 'master_apars.id')
-            ->join('harga_kebutuhans', 'transaksis.biaya_id', '=', 'harga_kebutuhans.id')
-            ->select(
-                DB::raw('SUM(CASE WHEN transaksis.kebutuhan_id IN (1, 2) THEN harga_kebutuhans.biaya * master_apars.ukuran ELSE harga_kebutuhans.biaya END) as total_biaya'),
-                DB::raw('strftime("%Y-%m", transaksis.tanggal_pembelian) as month_year')
+        // Mengubah logika menjadi hanya menjumlahkan kolom 'biaya' dari tabel 'transaksis'
+        $monthlyPengeluaran = Transaksi::select(
+                DB::raw('SUM(biaya) as total_biaya'),
+                DB::raw('strftime("%Y-%m", tanggal_pembelian) as month_year')
             )
-            ->whereBetween('transaksis.tanggal_pembelian', [$displayStartDate, $displayEndDate])
+            ->whereBetween('tanggal_pembelian', [$displayStartDate, $displayEndDate])
             ->groupBy('month_year')
             ->orderBy('month_year', 'asc')
             ->get();
@@ -187,7 +174,7 @@ class DashboardController extends Controller
             'totalUninspected',
             'expiredApar',
             'expiringSoonApar',
-            'usedApars', // Tambahkan variabel ini
+            'usedApars',
             'totalPengeluaran',
             'labelsPengeluaran',
             'dataPengeluaran'
