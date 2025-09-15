@@ -7,9 +7,10 @@ use App\Models\AparInspection;
 use App\Models\AparInspectionDetail;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use App\Models\Penggunaan;
 
-use Maatwebsite\Excel\Facades\Excel; // Tambahkan baris ini
-use App\Exports\RiwayatInspeksiExport; // Tambahkan baris ini
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\RiwayatInspeksiExport;
 
 class RiwayatInspeksiController extends Controller
 {
@@ -19,18 +20,19 @@ class RiwayatInspeksiController extends Controller
      */
     public function index(Request $request)
     {
-        // 1. Tambahkan nilai default untuk tanggal
-        // Jika parameter tidak ada, gunakan awal dan akhir bulan saat ini.
         $startDate = $request->input('start_date', Carbon::now()->startOfMonth()->toDateString());
         $endDate = $request->input('end_date', Carbon::now()->endOfMonth()->toDateString());
 
-        $query = AparInspection::with(['masterApar.gedung', 'user'])
+        // Eager load relasi dan tambahkan relasi Penggunaan terbaru
+        $query = AparInspection::with([
+            'masterApar.gedung',
+            'user',
+            'masterApar.latestPenggunaan' // Menggunakan relasi baru
+        ])
             ->orderBy('date', 'desc');
 
-        // 2. Selalu terapkan filter tanggal dengan nilai yang sudah ditentukan di atas
         $query->whereBetween('date', [$startDate, $endDate]);
 
-        // Menambahkan logika pencarian
         if ($request->filled('q')) {
             $search = $request->input('q');
             $query->where(function ($q) use ($search) {
@@ -38,9 +40,9 @@ class RiwayatInspeksiController extends Controller
                     $qApar->where('kode', 'like', "%{$search}%")
                         ->orWhere('lokasi', 'like', "%{$search}%");
                 })
-                ->orWhereHas('user', function ($qUser) use ($search) {
-                    $qUser->where('name', 'like', "%{$search}%");
-                });
+                    ->orWhereHas('user', function ($qUser) use ($search) {
+                        $qUser->where('name', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -61,7 +63,7 @@ class RiwayatInspeksiController extends Controller
             return back()->with('error', 'Detail Inspeksi tidak ditemukan.');
         }
     
-        $detail->value = 'B'; 
+        $detail->value = 'B';
         $detail->remark = null;
         $detail->save();
     
@@ -70,15 +72,21 @@ class RiwayatInspeksiController extends Controller
 
     public function export(Request $request)
     {
-        return Excel::download(new RiwayatInspeksiExport($request), 'riwayat_inspeksi.xlsx');
+        // Mendapatkan tanggal dari request atau menggunakan tanggal default
+        $startDate = $request->filled('start_date') ? Carbon::parse($request->input('start_date'))->translatedFormat('d-m-Y') : 'semua-tanggal';
+        $endDate = $request->filled('end_date') ? Carbon::parse($request->input('end_date'))->translatedFormat('d-m-Y') : 'semua-tanggal';
+
+        // Buat nama file yang dinamis
+        $fileName = "riwayat-penggunaan-apar-{$startDate}-{$endDate}.xlsx";
+
+        return Excel::download(new RiwayatInspeksiExport($request), $fileName);
     }
 
     public function updateItemStatus(AparInspectionDetail $detail)
     {
-        // Perbarui nilai item check menjadi 'B' (Baik) dan kosongkan remark.
         $detail->update([
             'value' => 'B',
-            'remark' => null, 
+            'remark' => null,
         ]);
 
         return redirect()->back()->with('success', 'Status item check berhasil diubah menjadi "Baik".');

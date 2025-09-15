@@ -42,7 +42,7 @@
                 <div id="isiUlangGroup" style="display:none;">
                     <div class="mb-3">
                         <label for="jenis_pemadam_id" class="form-label">Jenis Pemadam</label>
-                        <select class="form-control" id="jenis_pemadam_id" name="jenis_pemadam_id">
+                        <select class="form-control" id="jenis_pemadam_id">
                             <option value="">Pilih Jenis Pemadam</option>
                             @foreach($jenisPemadams as $jp)
                                 <option value="{{ $jp->id }}">{{ $jp->jenis_pemadam }}</option>
@@ -51,7 +51,7 @@
                     </div>
                     <div class="mb-3">
                         <label for="jenis_isi_id" class="form-label">Jenis Isi</label>
-                        <select class="form-control" id="jenis_isi_id" name="jenis_isi_id">
+                        <select class="form-control" id="jenis_isi_id">
                             <option value="">Pilih Jenis Isi</option>
                             @foreach($jenisIsis as $ji)
                                 <option value="{{ $ji->id }}">{{ $ji->jenis_isi }}</option>

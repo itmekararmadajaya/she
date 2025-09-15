@@ -144,6 +144,24 @@
                             <div class="fw-semibold">{{ \Carbon\Carbon::parse($inspection->date)->translatedFormat('d F Y') }}</div>
                         </div>
                         <div class="col-md-6">
+                            <h6 class="text-muted mb-1">Status Penggunaan:</h6>
+                            <div class="fw-semibold">
+                                @php
+                                    // Ambil data penggunaan terbaru
+                                    $latestUsage = $inspection->masterApar->penggunaans->first();
+                                    $statusPenggunaan = 'BELUM DIPAKAI';
+                                    if ($latestUsage && $latestUsage->status == 'NOT GOOD') {
+                                        $statusPenggunaan = 'SUDAH DIPAKAI';
+                                    }
+                                @endphp
+                                @if($statusPenggunaan == 'SUDAH DIPAKAI')
+                                    <span class="badge bg-danger rounded-pill px-3 py-2">SUDAH DIPAKAI</span>
+                                @else
+                                    <span class="badge bg-success rounded-pill px-3 py-2">BELUM DIPAKAI</span>
+                                @endif
+                            </div>
+                        </div>
+                        <div class="col-md-6">
                             <h6 class="text-muted mb-1">Bukti Inspeksi:</h6>
                             @if($inspection->final_foto_path)
                             <a href="{{ asset('storage/' . $inspection->final_foto_path) }}" target="_blank">

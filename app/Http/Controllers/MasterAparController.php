@@ -148,9 +148,7 @@ class MasterAparController extends Controller
         try {
             \DB::beginTransaction();
 
-            // Log: Tampilkan semua data request yang masuk
-            \Log::info('Incoming Request Data:', $request->all());
-
+            // 1. Validasi data yang masuk dari request
             $validated = $request->validate([
                 'kode' => 'required|string|max:8|unique:master_apars,kode',
                 'gedung_id' => 'required|exists:gedungs,id',
@@ -162,14 +160,11 @@ class MasterAparController extends Controller
                 'jenis_pemadam_id' => 'required|exists:jenis_pemadams,id',
                 'catatan' => 'nullable|string|max:255',
                 'is_new_apar' => 'nullable', 
-                'vendor_id' => 'required_if:is_new_apar,1|nullable|exists:vendors,id', // Ubah 'on' menjadi '1'
-                'tanggal_pembelian' => 'required_if:is_new_apar,1|nullable|date', // Ubah 'on' menjadi '1'
+                'vendor_id' => 'required_if:is_new_apar,1|nullable|exists:vendors,id',
+                'tanggal_pembelian' => 'required_if:is_new_apar,1|nullable|date',
             ]);
             
-            // Log: Tampilkan data yang sudah divalidasi
-            \Log::info('Validated Data:', $validated);
-
-            // 🔹 Simpan ke master_apars
+            // 2. Simpan data APAR baru ke tabel master_apars
             $masterApar = MasterApar::create([
                 'kode' => $validated['kode'],
                 'gedung_id' => $validated['gedung_id'],
@@ -183,21 +178,9 @@ class MasterAparController extends Controller
                 'is_active' => 1,
             ]);
             
-            // Log: Tampilkan ID APAR yang baru dibuat
-            \Log::info('New Master APAR created with ID:', ['id' => $masterApar->id]);
-
-            // 🔹 Jika APAR BARU → buat transaksi
-            if ($request->boolean('is_new_apar')) { // Gunakan helper boolean() yang lebih robust
-                
-                // Log: Tampilkan data yang digunakan untuk query harga
-                \Log::info('Attempting to find price with:', [
-                    'vendor_id' => $validated['vendor_id'],
-                    'kebutuhan_id' => 1,
-                    'jenis_pemadam_id' => $validated['jenis_pemadam_id'],
-                    'jenis_isi_id' => $validated['jenis_isi_id'],
-                ]);
-
-                // cari record harga di harga_kebutuhans
+            // 3. Jika ini APAR baru, buat juga data transaksinya
+            if ($request->boolean('is_new_apar')) {
+                // Cari harga dasar dari tabel harga_kebutuhans
                 $harga = \DB::table('harga_kebutuhans')
                     ->where('vendor_id', $validated['vendor_id'])
                     ->where('kebutuhan_id', 1) // 1 = APAR BARU
@@ -205,37 +188,33 @@ class MasterAparController extends Controller
                     ->where('jenis_isi_id', $validated['jenis_isi_id'])
                     ->first();
 
-                // Log: Tampilkan hasil query harga
-                \Log::info('Query Result for Price:', ['harga' => $harga]);
-
                 if (!$harga) {
-                    // Log: Tampilkan error jika harga tidak ditemukan
-                    \Log::error('Harga not found. Throwing exception.');
                     throw new \Exception('Harga kebutuhan tidak ditemukan untuk kombinasi tersebut.');
                 }
+                
+                // Hitung biaya final dengan mengalikan biaya dasar dengan ukuran APAR
+                $biayaFinal = $harga->biaya * $validated['ukuran'];
 
-                // simpan ke transaksis
-                $transaksi = Transaksi::create([
+                // Simpan data transaksi ke tabel transaksis
+                Transaksi::create([
                     'master_apar_id' => $masterApar->id,
                     'vendor_id' => $validated['vendor_id'],
-                    'kebutuhan_id' => 1, // APAR BARU
-                    'biaya_id' => $harga->id, // foreign key ke harga_kebutuhans
+                    'kebutuhan_id' => 1, // Kebutuhan ID untuk 'Beli Baru'
+                    'biaya_id' => $harga->id,
+                    'biaya' => $biayaFinal,
                     'tanggal_pembelian' => $validated['tanggal_pembelian'],
                 ]);
-
-                // Log: Tampilkan ID transaksi yang baru dibuat
-                \Log::info('New Transaction created with ID:', ['id' => $transaksi->id]);
             }
             
+            // 4. Commit transaksi database jika semua proses berhasil
             \DB::commit();
 
-            \Log::info('Data successfully saved. Committing transaction.');
-
             return redirect()->route('master-apar.index')
-                ->with('success', 'Data berhasil disimpan');
+                ->with('success', 'Data APAR dan transaksi berhasil disimpan.');
         } catch (\Exception $e) {
+            // 5. Rollback transaksi jika terjadi error
             \DB::rollBack();
-            // Log: Tampilkan pesan error penuh
+            
             \Log::error('Exception during store process: ' . $e->getMessage());
             return back()->withErrors(['error' => 'Gagal menyimpan data. Pastikan semua data terisi dengan benar. Error: ' . $e->getMessage()])->withInput();
         }

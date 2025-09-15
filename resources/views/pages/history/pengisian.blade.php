@@ -34,8 +34,7 @@
                             <th>Lokasi</th>
                             <th>Tanggal</th>
                             <th>Alasan</th>
-                            <th>Status</th>
-                            <th>Aksi</th>
+                            <th style="width: 120px;">Status</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -48,23 +47,16 @@
                             <td>{{ \Carbon\Carbon::parse($item->tanggal_penggunaan)->isoFormat('D MMMM YYYY') }}</td>
                             <td>{{ $item->alasan }}</td>
                             <td class="status-cell">
-                                @if ($item->status == 'GOOD')
+                                @if($item->status == 'GOOD')
                                     <span class="status-badge status-good">GOOD</span>
                                 @else
                                     <span class="status-badge status-not-good">NOT GOOD</span>
                                 @endif
                             </td>
-                            <td>
-                                @if ($item->status == 'NOT GOOD')
-                                    <button class="btn btn-primary btn-sm btn-action" data-id="{{ $item->id }}"><i class="fas fa-sync-alt"></i> Perbaikan</button>
-                                @else
-                                    <button class="btn btn-success btn-sm" disabled>Selesai</button>
-                                @endif
-                            </td>
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="8" class="text-center">Tidak ada data riwayat Penggunaan APAR.</td>
+                            <td colspan="7" class="text-center">Tidak ada data riwayat Penggunaan APAR.</td>
                         </tr>
                         @endforelse
                     </tbody>
@@ -85,8 +77,8 @@
 /* Status Styling */
 .status-badge {
     color: #fff;
-    padding: 0.5rem 1.5rem; /* Padding lebih besar untuk tampilan seperti pil */
-    border-radius: 50px; /* Nilai besar untuk membuat bentuk pil */
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
     font-weight: bold;
     display: inline-block;
     text-transform: uppercase;
@@ -104,78 +96,9 @@
 @endpush
 
 @push('scripts')
-<!-- SweetAlert2 CDN -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const buttons = document.querySelectorAll('.btn-action');
-
-    buttons.forEach(button => {
-        button.addEventListener('click', function() {
-            const penggunaanId = this.dataset.id;
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            const buttonElement = this;
-
-            Swal.fire({
-                title: 'Sedang Memproses...',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-
-            fetch(`/history/pengisian/${penggunaanId}/good`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                Swal.close();
-                if (data.success) {
-                    const statusCell = buttonElement.closest('tr').querySelector('.status-cell');
-                    
-                    statusCell.innerHTML = '<span class="status-badge status-good">GOOD</span>';
-                    
-                    buttonElement.disabled = true;
-                    buttonElement.innerHTML = 'Selesai';
-                    buttonElement.classList.remove('btn-primary', 'btn-action');
-                    buttonElement.classList.add('btn-success');
-                    
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Berhasil!',
-                        text: data.message,
-                        showConfirmButton: false,
-                        timer: 2000
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Gagal!',
-                        text: data.message,
-                    });
-                }
-            })
-            .catch(error => {
-                Swal.close();
-                console.error('Error:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Kesalahan!',
-                    text: 'Terjadi kesalahan saat menghubungi server.',
-                });
-            });
-        });
-    });
-
     const startDateFilter = document.getElementById('start-date-filter');
     const endDateFilter = document.getElementById('end-date-filter');
     const exportBtn = document.getElementById('export-excel-btn');

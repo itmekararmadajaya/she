@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\Penggunaan;
+use App\Models\Transaksi;
 use Carbon\Carbon;
 
 class MasterApar extends Model
@@ -57,9 +59,17 @@ class MasterApar extends Model
         return $this->belongsTo(Gedung::class, 'gedung_id');
     }
     
-    public function penggunaan()
+    public function penggunaans()
     {
-        return $this->hasOne(Penggunaan::class, 'master_apar_id');
+        return $this->hasMany(Penggunaan::class, 'master_apar_id');
+    }
+
+    /**
+     * Get the latest usage entry for the APAR.
+     */
+    public function latestPenggunaan()
+    {
+        return $this->hasOne(Penggunaan::class, 'master_apar_id')->latest('tanggal_penggunaan');
     }
 
     /**
@@ -105,6 +115,11 @@ class MasterApar extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    public function transaksis()
+    {
+        return $this->hasMany(Transaksi::class, 'master_apar_id');
     }
 
     /**

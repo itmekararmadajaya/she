@@ -80,17 +80,7 @@
                                 <td>{{ $transaksi->tanggal_pembelian }}</td>
                                 <!-- <td>{{ $transaksi->tanggal_pelunasan }}</td> -->
                                 <td>
-                                    @php
-                                        $biaya = optional($transaksi->hargaKebutuhan)->biaya ?? 0;
-                                        $kebutuhanType = optional($transaksi->kebutuhan)->kebutuhan;
-                                        $ukuranApar = optional($transaksi->masterApar)->ukuran ?? 1;
-                                        
-                                        // Kalikan biaya dengan ukuran jika kebutuhan adalah 'Beli Baru' atau 'Isi Ulang'
-                                        if (in_array($kebutuhanType, ['Beli Baru', 'Isi Ulang'])) {
-                                            $biaya = $biaya * $ukuranApar;
-                                        }
-                                    @endphp
-                                    Rp {{ number_format($biaya, 0, ',', '.') }}
+                                    Rp {{ number_format($transaksi->biaya, 0, ',', '.') }}
                                 </td>
                                 <td>
                                     <a href="{{ route('transaksi.edit', $transaksi->id) }}" class="btn btn-warning btn-sm">Edit</a>
@@ -109,25 +99,15 @@
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="5" class="text-right"><strong>Total Biaya</strong></td>
-                            <td>
-                                <strong>
-                                    Rp {{ number_format(
-                                        $transaksis->sum(function($transaksi) {
-                                            $biaya = optional($transaksi->hargaKebutuhan)->biaya ?? 0;
-                                            $kebutuhanType = optional($transaksi->kebutuhan)->kebutuhan;
-                                            $ukuranApar = optional($transaksi->masterApar)->ukuran ?? 1;
-                                            
-                                            // Kalikan biaya dengan ukuran jika kebutuhan adalah 'Beli Baru' atau 'Isi Ulang'
-                                            if (in_array($kebutuhanType, ['Beli Baru', 'Isi Ulang'])) {
-                                                return $biaya * $ukuranApar;
-                                            }
-                                            return $biaya;
-                                        }), 
-                                        0, ',', '.'
-                                    ) }}
-                                </strong>
-                            </td>
+                            <tr>
+                                <td colspan="5" class="text-right"><strong>Total Biaya</strong></td>
+                                <td>
+                                    <strong>
+                                        Rp {{ number_format($transaksis->sum('biaya'), 0, ',', '.') }}
+                                    </strong>
+                                </td>
+                                <td></td>
+                            </tr>
                             <td></td>
                         </tr>
                         <tr>

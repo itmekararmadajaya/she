@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Models;
-
+use App\Models\MasterApar;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -9,8 +9,12 @@ class Transaksi extends Model
 {
     use HasFactory;
     
-    protected $fillable = ['master_apar_id', 'vendor_id', 'kebutuhan_id', 'biaya_id', 'tanggal_pembelian', 'tanggal_pelunasan'];
-    
+    protected $fillable = ['master_apar_id', 'vendor_id', 'kebutuhan_id', 'tanggal_pembelian', 'tanggal_pelunasan', 'biaya_id', 'biaya'];
+
+    protected $casts = [
+        'biaya' => 'float',
+    ];
+
     public function vendor()
     {
         return $this->belongsTo(Vendor::class);

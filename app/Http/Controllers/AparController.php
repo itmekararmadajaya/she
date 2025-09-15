@@ -306,46 +306,128 @@ class AparController extends Controller
     // Fungsionalitas Laporan Lainnya
     public function refill(Request $request)
     {
+        // 1. Tambahkan validasi untuk `item_check_ids` sebagai array
         $request->validate([
             'master_apar_id' => 'required|integer|exists:master_apars,id',
             'vendor_id' => 'required|integer|exists:vendors,id',
             'kebutuhan_id' => 'required|integer|exists:kebutuhans,id',
             'tanggal_pembelian' => 'required|date',
             'tgl_kadaluarsa' => 'nullable|date',
+            'item_check_ids' => 'nullable|array', // Validasi untuk menerima array
+            'item_check_ids.*' => 'integer|exists:item_checks,id', // Validasi setiap elemen di array
         ]);
 
-        // Ambil biaya_id dari tabel harga_kebutuhans
-        $hargaKebutuhan = HargaKebutuhan::where('vendor_id', $request->vendor_id)
-            ->where('kebutuhan_id', $request->kebutuhan_id)
-            ->latest('tanggal_perubahan') // ambil yang terbaru kalau ada banyak versi
-            ->first();
+        // Memulai transaksi database untuk memastikan operasi atomik
+        DB::beginTransaction();
 
-        if (!$hargaKebutuhan) {
+        try {
+            // Cari data APAR
+            $apar = MasterApar::find($request->master_apar_id);
+            if (!$apar) {
+                DB::rollBack();
+                return response()->json([
+                    'message' => 'APAR tidak ditemukan.'
+                ], 404);
+            }
+
+            // Tentukan kebutuhan
+            $kebutuhanId = $request->kebutuhan_id;
+            $vendorId = $request->vendor_id;
+            $masterAparId = $request->master_apar_id;
+
+            // Inisialisasi daftar transaksi yang akan disimpan
+            $transaksis = [];
+
+            if ($kebutuhanId == 2) { // Kebutuhan "Isi Ulang"
+                // Cari harga yang cocok
+                $hargaKebutuhan = HargaKebutuhan::where('vendor_id', $vendorId)
+                    ->where('kebutuhan_id', $kebutuhanId)
+                    ->latest('tanggal_perubahan')
+                    ->first();
+
+                if (!$hargaKebutuhan) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'Harga isi ulang tidak ditemukan untuk vendor ini.'
+                    ], 404);
+                }
+
+                // Hitung biaya
+                $finalCost = $hargaKebutuhan->biaya * $apar->ukuran;
+                
+                // Buat transaksi tunggal untuk isi ulang
+                $transaksi = Transaksi::create([
+                    'master_apar_id' => $masterAparId,
+                    'vendor_id' => $vendorId,
+                    'kebutuhan_id' => $kebutuhanId,
+                    'tanggal_pembelian' => $request->tanggal_pembelian,
+                    'biaya_id' => $hargaKebutuhan->id,
+                    'biaya' => $finalCost,
+                ]);
+                $transaksis[] = $transaksi;
+
+            } elseif ($kebutuhanId == 3) { // Kebutuhan "Ganti Komponen"
+                // Dapatkan semua ID komponen dari request
+                $itemCheckIds = $request->item_check_ids;
+                
+                // Verifikasi bahwa ada item yang dipilih
+                if (empty($itemCheckIds)) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'Anda harus memilih setidaknya satu komponen.'
+                    ], 422);
+                }
+
+                // Cari semua harga yang cocok dalam satu query
+                $hargaKebutuhans = HargaKebutuhan::where('vendor_id', $vendorId)
+                    ->where('kebutuhan_id', $kebutuhanId)
+                    ->whereIn('item_check_id', $itemCheckIds)
+                    ->get();
+                
+                if ($hargaKebutuhans->isEmpty()) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'Harga komponen tidak ditemukan untuk vendor ini.'
+                    ], 404);
+                }
+
+                // Loop melalui setiap harga komponen untuk membuat transaksi terpisah
+                foreach ($hargaKebutuhans as $hargaKebutuhan) {
+                    $transaksi = Transaksi::create([
+                        'master_apar_id' => $masterAparId,
+                        'vendor_id' => $vendorId,
+                        'kebutuhan_id' => $kebutuhanId,
+                        'tanggal_pembelian' => $request->tanggal_pembelian,
+                        'biaya_id' => $hargaKebutuhan->id, // Biaya ID dari HargaKebutuhan
+                        'biaya' => $hargaKebutuhan->biaya, // Biaya per komponen
+                    ]);
+                    $transaksis[] = $transaksi;
+                }
+            }
+            
+            // Update tanggal kadaluarsa di master_apars
+            if ($request->filled('tgl_kadaluarsa')) {
+                $apar->tgl_kadaluarsa = $request->tgl_kadaluarsa;
+            }
+            $apar->save();
+            
+            // Commit transaksi database
+            DB::commit();
+
             return response()->json([
-                'message' => 'Harga untuk vendor dan kebutuhan tersebut tidak ditemukan.'
-            ], 404);
+                'message' => 'Update APAR dan transaksi berhasil',
+                'transaksis' => $transaksis, // Mengubah 'transaksi' menjadi 'transaksis' untuk array
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            // Log kesalahan untuk debugging
+            Log::error('Gagal memproses refill: ' . $e->getMessage(), ['exception' => $e]);
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat memproses refill. Silakan coba lagi.',
+                'error_detail' => $e->getMessage()
+            ], 500);
         }
-
-        // Update tanggal kadaluarsa di master_apars
-        $apar = MasterApar::find($request->master_apar_id);
-        if ($request->filled('tgl_kadaluarsa')) {
-            $apar->tgl_kadaluarsa = $request->tgl_kadaluarsa;
-        }
-        $apar->save();
-
-        // Buat transaksi baru
-        $transaksi = Transaksi::create([
-            'master_apar_id' => $request->master_apar_id,
-            'vendor_id' => $request->vendor_id,
-            'kebutuhan_id' => $request->kebutuhan_id,
-            'tanggal_pembelian' => $request->tanggal_pembelian,
-            'biaya_id' => $hargaKebutuhan->id,
-        ]);
-
-        return response()->json([
-            'message' => 'Update APAR dan transaksi berhasil',
-            'transaksi' => $transaksi,
-        ]);
     }
 
     public function exportExcelRefill(Request $request){
