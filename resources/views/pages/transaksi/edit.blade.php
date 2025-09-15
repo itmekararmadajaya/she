@@ -7,6 +7,12 @@
             <h1 class="h3 mb-0 text-gray-800">Edit Transaksi</h1>
         </div>
         <div class="card-body">
+            @if(session('success'))
+                <div class="alert alert-success">{{ session('success') }}</div>
+            @endif
+            @if(session('error'))
+                <div class="alert alert-danger">{{ session('error') }}</div>
+            @endif
             <form id="transaksiForm" action="{{ route('transaksi.update', $transaksi->id) }}" method="POST">
                 @csrf
                 @method('PUT')
@@ -24,7 +30,9 @@
                     <select class="form-control" id="kebutuhan_id" name="kebutuhan_id" required>
                         <option value="">Pilih Kebutuhan</option>
                         @foreach($kebutuhans as $kebutuhan)
-                            <option value="{{ $kebutuhan->id }}" {{ $transaksi->kebutuhan_id == $kebutuhan->id ? 'selected' : '' }}>{{ $kebutuhan->kebutuhan }}</option>
+                            @if($kebutuhan->id != 1) {{-- Tambahkan baris ini --}}
+                                <option value="{{ $kebutuhan->id }}" {{ $transaksi->kebutuhan_id == $kebutuhan->id ? 'selected' : '' }}>{{ $kebutuhan->kebutuhan }}</option>
+                            @endif {{-- Tambahkan baris ini --}}
                         @endforeach
                     </select>
                 </div>
@@ -38,7 +46,6 @@
                     </select>
                 </div>
 
-                <!-- Kelompok dropdown untuk "Isi Ulang" -->
                 <div id="isiUlangGroup" style="display:none;">
                     <div class="mb-3">
                         <label for="jenis_pemadam_id" class="form-label">Jenis Pemadam</label>
@@ -60,7 +67,6 @@
                     </div>
                 </div>
 
-                <!-- Kelompok dropdown untuk "Ganti Komponen" -->
                 <div id="gantiKomponenGroup" style="display:none;">
                     <div class="mb-3">
                         <label for="item_check_id" class="form-label">Jenis Komponen</label>
@@ -77,10 +83,13 @@
 
                 <div class="mb-3">
                     <label for="biaya" class="form-label">Biaya</label>
-                    <input type="text" class="form-control" id="biaya" name="biaya_display" readonly placeholder="Pilih Vendor dan Kebutuhan">
+                    <input type="text" class="form-control" id="biaya_display" readonly placeholder="Pilih Vendor dan Kebutuhan" value="{{ number_format($transaksi->biaya, 0, ',', '.') }}">
                 </div>
+
+                <input type="hidden" id="biaya" name="biaya" value="{{ $transaksi->biaya }}">
                 
-                <input type="hidden" id="harga_kebutuhan_id" name="harga_kebutuhan_id" value="{{ old('harga_kebutuhan_id', $transaksi->harga_kebutuhan_id) }}">
+                <input type="hidden" id="biaya_id" name="biaya_id" value="{{ $transaksi->biaya_id }}">
+                <input type="hidden" name="harga_kebutuhan_id" value="{{ $transaksi->biaya_id }}">
 
                 <button type="submit" class="btn btn-primary">Update</button>
                 <a href="{{ route('transaksi.index') }}" class="btn btn-secondary">Batal</a>
@@ -94,43 +103,35 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
     $(document).ready(function() {
-        // Data master dari backend
         const masterApars = @json($masterApars);
         const itemChecks = @json($itemChecks);
         const hargaKebutuhans = @json($hargaKebutuhans);
         const currentTransaksi = @json($transaksi);
-
+        const hargaKebutuhan = @json($harga_kebutuhan);
         const isiUlangGroup = $('#isiUlangGroup');
         const gantiKomponenGroup = $('#gantiKomponenGroup');
         const jenisPemadamSelect = $('#jenis_pemadam_id');
         const jenisIsiSelect = $('#jenis_isi_id');
         const masterAparSelect = $('#master_apar_id');
         const kebutuhanSelect = $('#kebutuhan_id');
-        const biayaInput = $('#biaya');
-        const hargaIdInput = $('#harga_kebutuhan_id');
+        const biayaDisplayInput = $('#biaya_display');
+        const hiddenBiayaInput = $('#biaya');
+        const biayaIdInput = $('#biaya_id');
         const itemCheckSelect = $('#item_check_id');
 
-        // Fungsi untuk mengaktifkan/menonaktifkan input
         function toggleInputStatus(isEnabled) {
             jenisPemadamSelect.prop('disabled', !isEnabled);
             jenisIsiSelect.prop('disabled', !isEnabled);
         }
 
-        // Fungsi untuk menampilkan/menyembunyikan kolom dinamis
         function toggleKebutuhanFields() {
             const selectedKebutuhan = kebutuhanSelect.find('option:selected').text().trim();
             
-            // Sembunyikan semua grup terlebih dahulu
             isiUlangGroup.hide();
             gantiKomponenGroup.hide();
-            
-            // Reset dropdown dinamis
-            jenisPemadamSelect.val('');
-            jenisIsiSelect.val('');
-            itemCheckSelect.val('');
+            masterAparSelect.prop('disabled', false);
             toggleInputStatus(true);
-
-            // Tampilkan grup yang sesuai
+            
             if (selectedKebutuhan === 'Isi Ulang') {
                 isiUlangGroup.show();
             } else if (selectedKebutuhan === 'Ganti Komponen') {
@@ -141,7 +142,6 @@
             getHargaData();
         }
 
-        // Fungsi untuk mengisi dropdown "Jenis Komponen"
         function populateItemCheckDropdown() {
             const vendorId = parseInt($('#vendor_id').val());
             const kebutuhanId = parseInt(kebutuhanSelect.val());
@@ -156,14 +156,12 @@
                 );
                 
                 const uniqueItemCheckIds = [...new Set(availableItems.map(item => item.item_check_id))];
-                
-                const filteredItemChecks = itemChecks.filter(itemCheck => 
-                    uniqueItemCheckIds.includes(itemCheck.id)
-                );
+                const filteredItemChecks = itemChecks.filter(itemCheck => uniqueItemCheckIds.includes(itemCheck.id));
                 
                 if (filteredItemChecks.length > 0) {
                     filteredItemChecks.forEach(item => {
-                        itemCheckSelect.append('<option value="' + item.id + '">' + item.name + '</option>');
+                        const isSelected = hargaKebutuhan && hargaKebutuhan.item_check_id === item.id;
+                        itemCheckSelect.append(`<option value="${item.id}" ${isSelected ? 'selected' : ''}>${item.name}</option>`);
                     });
                     itemCheckSelect.prop('disabled', false);
                 } else {
@@ -173,14 +171,8 @@
             } else {
                 itemCheckSelect.prop('disabled', true);
             }
-
-            // Set nilai awal jika sedang mengedit
-            if (currentTransaksi && currentTransaksi.harga_kebutuhan && currentTransaksi.harga_kebutuhan.item_check_id) {
-                 itemCheckSelect.val(currentTransaksi.harga_kebutuhan.item_check_id);
-            }
         }
-
-        // Fungsi untuk mendapatkan data biaya
+        
         function getHargaData() {
             const vendorId = parseInt($('#vendor_id').val());
             const kebutuhanId = parseInt(kebutuhanSelect.val());
@@ -190,9 +182,10 @@
             const jenisPemadamId = parseInt(jenisPemadamSelect.val());
             const jenisIsiId = parseInt(jenisIsiSelect.val());
 
-            biayaInput.val('').attr('placeholder', 'Memuat biaya...');
-            hargaIdInput.val('');
-            
+            biayaDisplayInput.val('').attr('placeholder', 'Memuat biaya...');
+            biayaIdInput.val('');
+            hiddenBiayaInput.val('');
+
             let foundPrice = null;
             let finalBiaya = null;
 
@@ -222,7 +215,7 @@
                             finalBiaya = foundPrice.biaya;
                         }
                     } else {
-                        biayaInput.val('').attr('placeholder', 'Pilih Jenis Pemadam dan Jenis Isi');
+                        biayaDisplayInput.val('').attr('placeholder', 'Pilih Jenis Pemadam dan Jenis Isi');
                         return;
                     }
                 } else if (selectedKebutuhan === 'Ganti Komponen') {
@@ -236,12 +229,12 @@
                             finalBiaya = foundPrice.biaya;
                         }
                     } else {
-                        biayaInput.val('').attr('placeholder', 'Pilih Jenis Komponen');
+                        biayaDisplayInput.val('').attr('placeholder', 'Pilih Jenis Komponen');
                         return;
                     }
                 }
             } else {
-                biayaInput.val('').attr('placeholder', 'Pilih Vendor dan Kebutuhan');
+                biayaDisplayInput.val('').attr('placeholder', 'Pilih Vendor dan Kebutuhan');
                 return;
             }
 
@@ -251,28 +244,34 @@
                     currency: 'IDR',
                     minimumFractionDigits: 0
                 }).format(finalBiaya);
-                biayaInput.val(formattedBiaya);
-                hargaIdInput.val(foundPrice.id);
+                biayaDisplayInput.val(formattedBiaya);
+                hiddenBiayaInput.val(finalBiaya);
+                biayaIdInput.val(foundPrice.id);
             } else {
-                biayaInput.val('').attr('placeholder', 'Harga tidak ditemukan untuk kombinasi ini.');
-                hargaIdInput.val('');
+                biayaDisplayInput.val('').attr('placeholder', 'Harga tidak ditemukan untuk kombinasi ini.');
+                hiddenBiayaInput.val('');
+                biayaIdInput.val('');
             }
         }
-
-        // Event listeners
-        $('#vendor_id, #kebutuhan_id').change(function() {
-            toggleKebutuhanFields();
-            getHargaData();
-        });
         
-        $('#jenis_pemadam_id, #jenis_isi_id, #item_check_id').change(function() {
-            getHargaData();
-        });
+        // Panggil saat halaman dimuat untuk mengatur tampilan awal
+        const initialAparId = masterAparSelect.val();
+        const initialKebutuhan = kebutuhanSelect.find('option:selected').text().trim();
+        if (initialKebutuhan === 'Isi Ulang' && initialAparId) {
+            toggleInputStatus(false);
+        } else {
+            toggleInputStatus(true);
+        }
 
+        toggleKebutuhanFields();
+        getHargaData();
+
+        // Event listeners untuk dropdown
+        $('#vendor_id, #kebutuhan_id').change(toggleKebutuhanFields);
+        $('#jenis_pemadam_id, #jenis_isi_id, #item_check_id').change(getHargaData);
         $('#master_apar_id').change(function() {
             const selectedAparId = $(this).val();
             const selectedKebutuhan = kebutuhanSelect.find('option:selected').text().trim();
-            
             if (selectedKebutuhan === 'Isi Ulang' && selectedAparId) {
                 const selectedApar = masterApars.find(apar => apar.id == selectedAparId);
                 if (selectedApar) {
@@ -285,10 +284,6 @@
             }
             getHargaData();
         });
-
-        // Panggil saat halaman dimuat untuk mengatur tampilan awal
-        toggleKebutuhanFields();
-        getHargaData();
     });
 </script>
 @endpush

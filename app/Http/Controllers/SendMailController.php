@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\AparRefillNotification;
 use App\Mail\AparRusakNotification;
+use App\Mail\AparUsedNotification;
 use App\Models\AparInspection;
 use App\Models\MasterApar;
 use App\Models\User;
@@ -50,7 +51,7 @@ class SendMailController extends Controller
                 })
                 ->get();
 
-            if(!empty($aparRusak)){
+            if($aparRusak->isNotEmpty()){
                 $adminUsers = User::role('admin')->get();
                 foreach ($adminUsers as $user) {
                     Mail::to($user->email)->send(new AparRusakNotification($aparRusak));
@@ -65,6 +66,28 @@ class SendMailController extends Controller
             Log::info($th->getMessage());
             return response('Email laporan APAR rusak gagal dikirim', 500)
             ->header('Content-Type', 'text/plain');
+        }
+    }
+
+    public function aparUsed(){
+        try {
+            $penggunaanApar = PenggunaanApar::with(['masterApar.gedung', 'user'])->latest()->first();
+
+            if ($penggunaanApar) {
+                $adminUsers = User::role('admin')->get();
+                foreach ($adminUsers as $user) {
+                    Mail::to($user->email)->send(new AparUsedNotification($penggunaanApar));
+                }
+
+                Log::info('Email notifikasi APAR digunakan dikirim ke semua admin');
+                
+                return response('Email notifikasi APAR digunakan berhasil dikirim', 200)
+                    ->header('Content-Type', 'text/plain');
+            }
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            return response('Email notifikasi APAR digunakan gagal dikirim', 500)
+                ->header('Content-Type', 'text/plain');
         }
     }
 }

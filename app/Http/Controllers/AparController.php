@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exports\Apar\RefillExport;
 use App\Exports\Apar\RusakExport;
+use App\Models\Penggunaan;
 use App\Http\Controllers\Controller;
 use App\Models\AparInspection;
 use App\Models\AparInspectionDetail;
@@ -19,10 +20,12 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\SpreadsheeT;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use App\Http\Controllers\SendMailController;
 use App\Models\Transaksi;
 use App\Models\HargaKebutuhan;
 use App\Models\Vendor;
 use App\Models\Kebutuhan;
+use Illuminate\Support\Facades\Log;
 
 class AparController extends Controller
 {
@@ -451,6 +454,40 @@ class AparController extends Controller
         ]);
     }
 
+    public function getAparStatusCountsConsistent()
+    {
+        // Temukan ID inspeksi terbaru untuk setiap APAR
+        $latestInspections = AparInspection::select(DB::raw('MAX(id) as latest_inspection_id'))
+            ->groupBy('master_apar_id');
+
+        // Temukan ID APAR yang memiliki item rusak berdasarkan inspeksi terbaru
+        $notGoodAparIds = AparInspectionDetail::joinSub($latestInspections, 'latest_inspections', function ($join) {
+            $join->on('apar_inspection_details.apar_inspection_id', '=', 'latest_inspections.latest_inspection_id');
+        })
+        ->where('apar_inspection_details.value', '!=', 'B')
+        ->pluck('latest_inspections.latest_inspection_id')
+        ->unique();
+    
+        // Temukan ID APAR yang rusak karena penggunaan
+        $notGoodPenggunaanIds = Penggunaan::where('status', 'NOT GOOD')->pluck('master_apar_id');
+    
+        // Gabungkan semua ID APAR yang rusak dan hilangkan duplikasi
+        $finalNotGoodAparIds = $notGoodAparIds->merge($notGoodPenggunaanIds)->unique();
+    
+        // Dapatkan total jumlah APAR yang aktif
+        $totalActiveAparCount = MasterApar::where('is_active', true)->count();
+    
+        // Hitung jumlah APAR GOOD dan NOT GOOD
+        $notGoodCount = $finalNotGoodAparIds->count();
+        $goodCount = $totalActiveAparCount - $notGoodCount;
+    
+        // Kembalikan data dalam format JSON
+        return response()->json([
+            'good_count' => $goodCount,
+            'not_good_count' => $notGoodCount,
+        ]);
+    }
+
     public function getUninspectedAreaCounts(Request $request)
     {
         $month = $request->input('month', Carbon::now()->month);
@@ -640,43 +677,30 @@ class AparController extends Controller
                 ];
             }
         }
-
-        // --- Perubahan Penting di Sini ---
-        // Pastikan Anda menyertakan ID dan nama dari relasi
-        $jenisPemadam = [
-            'id' => $apar->jenisPemadam->id ?? null,
-            'name' => $apar->jenisPemadam->jenis_pemadam ?? '-'
-        ];
-        $jenisIsi = [
-            'id' => $apar->jenisIsi->id ?? null,
-            'name' => $apar->jenisIsi->jenis_isi ?? '-'
-        ];
-
-        $response = [
-            'id' => $apar->id,
-            'kode' => $apar->kode,
-            'jenis' => $jenisIsi['name'], // Menggunakan nama jenis_isi
-            'ukuran' => $apar->ukuran . ' ' . $apar->satuan,
-            'lokasi' => $namaGedung . ' - ' . $apar->lokasi,
-            'tgl_refill' => $apar->tgl_refill ?? '-',
-            'tgl_kadaluarsa' => $apar->tgl_kadaluarsa ?? '-',
-            
-            // --- Ini adalah penambahan yang paling penting ---
-            'jenis_pemadam_id' => $apar->jenis_pemadam_id,
-            'jenis_isi_id' => $apar->jenis_isi_id,
-            'jenis_pemadam' => $jenisPemadam,
-            'jenis_isi' => $jenisIsi,
-            // --- Akhir penambahan ---
-            
-            'item_checks' => $itemChecks,
-            'inspections' => $inspections,
-            'is_inspected' => $isInspectedThisMonth,
-        ];
+        
+        // Ambil gedung_id dari relasi gedung atau properti langsung
+        $gedungId = $apar->gedung_id ?? null;
 
         return response()->json([
             'success' => true,
-            'data' => $response
-        ], 200);
+            'data' => [
+                'id' => $apar->id,
+                'kode' => $apar->kode,
+                'jenis' => $apar->jenisIsi->name ?? '-',
+                'ukuran' => $apar->ukuran,
+                'lokasi' => $apar->lokasi,
+                'tgl_refill' => $apar->tgl_refill ?? '-',
+                'tgl_kadaluarsa' => $apar->tgl_kadaluarsa,
+                'jenis_pemadam_id' => $apar->jenis_pemadam_id,
+                'jenis_isi_id' => $apar->jenis_isi_id,
+                'gedung_id' => $gedungId, // BARIS INI DITAMBAHKAN
+                'jenis_pemadam' => $apar->jenisPemadam->toArray(),
+                'jenis_isi' => $apar->jenisIsi->toArray(),
+                'item_checks' => $itemChecks->toArray(),
+                'inspections' => $inspections,
+                'is_inspected' => $isInspectedThisMonth,
+            ]
+        ]);
     }
 
     public function update(Request $request, $id)
@@ -746,12 +770,60 @@ class AparController extends Controller
             'data' => $apars
         ], 200);
     }
+
+    public function storePenggunaan(Request $request)
+    {
+        // 1. Validasi data yang masuk
+        $validator = Validator::make($request->all(), [
+            'master_apar_id' => 'required|integer|exists:master_apars,id',
+            'gedung_id' => 'required|integer|exists:gedungs,id',
+            'lokasi' => 'required|string|max:255',
+            'tanggal_penggunaan' => 'required|date',
+            'alasan' => 'required|string',
+            'user_id' => 'required|integer|exists:users,id',
+        ]);
+
+        if ($validator->fails()) {
+            Log::error('Validasi gagal saat menyimpan penggunaan.', ['errors' => $validator->errors()->toArray(), 'request' => $request->all()]);
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validasi gagal.',
+                'errors' => $validator->errors(),
+            ], 400);
+        }
+
+        try {
+            // 2. Buat record baru di tabel 'penggunaans'
+            $penggunaan = Penggunaan::create([
+                'master_apar_id' => $request->master_apar_id,
+                'gedung_id' => $request->gedung_id,
+                'lokasi' => $request->lokasi,
+                'tanggal_penggunaan' => $request->tanggal_penggunaan,
+                'alasan' => $request->alasan,
+                'user_id' => $request->user_id,
+                'status' => 'NOT GOOD',
+            ]);
+            app(SendMailController::class)->aparUsed();
+
+            // 3. Beri respons sukses
+            Log::info('Laporan penggunaan berhasil disimpan.', ['data' => $penggunaan->toArray()]);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Laporan penggunaan berhasil disimpan.',
+                'data' => $penggunaan,
+            ], 201);
+            
+        } catch (\Exception $e) {
+            // 4. Tangani error jika terjadi
+            Log::error('Gagal menyimpan laporan penggunaan: ' . $e->getMessage(), ['exception' => $e->getTraceAsString()]);
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal menyimpan laporan penggunaan. Silakan coba lagi.',
+                'error_detail' => $e->getMessage(),
+            ], 500);
+        }
+    }
     
-    /**
-     * Menyimpan data inspeksi dan foto-foto terkait.
-     * Menggunakan transaksi database untuk memastikan integritas data.
-     * Menggunakan Laravel Storage untuk otomatis membuat folder.
-     */
     public function storeInspeksi(Request $request)
     {
         try {
@@ -774,15 +846,22 @@ class AparController extends Controller
             // Memulai transaksi database
             DB::beginTransaction();
 
+            // Find the MasterApar record to get additional data (gedung_id and lokasi)
+            $masterApar = MasterApar::find($request->input('master_apar_id'));
+            if (!$masterApar) {
+                DB::rollBack();
+                return response()->json([
+                    'message' => 'APAR tidak ditemukan.',
+                ], 404);
+            }
+
             $tanggal_inspeksi = Carbon::createFromFormat('Y-m-d', $request->input('date'));
 
             // 1. Proses dan simpan foto akhir.
-            // Storage::put() secara otomatis membuat folder jika belum ada.
             $finalPhotoBase64 = $request->input('final_photo');
             $finalPhotoData = base64_decode($finalPhotoBase64);
             $finalPhotoName = 'inspeksi_akhir_' . time() . '_' . Str::random(10) . '.png';
             $finalPhotoPath = 'inspeksi_akhir/' . $finalPhotoName;
-
             Storage::disk('public')->put($finalPhotoPath, $finalPhotoData);
 
             // 2. Buat entri inspeksi baru di tabel `apar_inspections`
@@ -791,6 +870,8 @@ class AparController extends Controller
                 'user_id' => $request->input('user_id'),
                 'date' => $tanggal_inspeksi,
                 'final_foto_path' => $finalPhotoPath, // Menyimpan path foto akhir
+                'gedung_id' => $masterApar->gedung_id, // Ambil gedung_id dari master_apars
+                'lokasi' => $masterApar->lokasi, // Ambil lokasi dari master_apars
             ]);
 
             // Decode data details
@@ -810,10 +891,8 @@ class AparController extends Controller
                 if (!empty($detail['photo'])) {
                     $photoData = base64_decode($detail['photo']);
                     $photoName = 'inspeksi_detail_' . time() . '_' . Str::random(10) . '.png';
-                    // Menyimpan foto detail ke sub-folder 'apar_inspeksi_detail'
                     $photoPath = 'apar_inspeksi_detail/' . $photoName; 
 
-                    // Storage::put() akan otomatis membuat folder `apar_inspeksi_detail` jika belum ada.
                     Storage::disk('public')->put($photoPath, $photoData);
 
                     // Simpan entri foto detail ke tabel `apar_inspeksi_photos`
@@ -824,6 +903,11 @@ class AparController extends Controller
                     ]);
                 }
             }
+
+            // Opsional: Perbarui tanggal inspeksi terakhir di master APAR
+            $masterApar->update([
+                'tanggal_inspeksi_terakhir' => $tanggal_inspeksi
+            ]);
 
             DB::commit();
 

@@ -16,6 +16,8 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class TransaksiController extends Controller
 {
@@ -56,7 +58,7 @@ class TransaksiController extends Controller
             'master_apar_id' => 'nullable|exists:master_apars,id',
             'tanggal_pembelian' => 'required|date',
             'tanggal_pelunasan' => 'nullable|date',
-            'harga_kebutuhan_id' => 'required|exists:harga_kebutuhans,id',
+            'biaya_id' => 'required|exists:harga_kebutuhans,id',
         ]);
 
         $hargaKebutuhan = HargaKebutuhan::findOrFail($request->harga_kebutuhan_id);
@@ -105,49 +107,38 @@ class TransaksiController extends Controller
      */
     public function store(Request $request)
     {
-        // 1. Validasi data form
-        $request->validate([
-            'kode' => 'required|string|max:8|unique:master_apars,kode',
-            'gedung_id' => 'required|exists:gedungs,id',
-            'lokasi' => 'required|string',
-            'tgl_kadaluarsa' => 'required|date',
-            'ukuran' => 'required|numeric',
-            'satuan' => 'required|string',
-            'jenis_isi_id' => 'required|exists:jenis_isis,id',
-            'jenis_pemadam_id' => 'required|exists:jenis_pemadams,id',
-            'catatan' => 'nullable|string|max:255',
-            'is_new_apar' => 'nullable|boolean', // Validasi untuk checkbox
-            'vendor_id' => 'required_if:is_new_apar,true|exists:vendors,id', // Wajib jika APAR BARU
-            'tanggal_pembelian' => 'required_if:is_new_apar,true|date', // Wajib jika APAR BARU
+        $validatedData = $request->validate([
+            'vendor_id' => 'required|exists:vendors,id',
+            'kebutuhan_id' => 'required|exists:kebutuhans,id',
+            'master_apar_id' => 'nullable|exists:master_apars,id',
+            'biaya_id' => 'required|exists:harga_kebutuhans,id', // Perbaikan di sini
+            'biaya' => 'required|numeric',
+            'tanggal_pembelian' => 'required|date',
+            // 'tanggal_pelunasan' => 'nullable|date|after_or_equal:tanggal_pembelian',
         ]);
-
-        // 2. Buat data APAR baru dan ambil ID-nya
-        $apar = MasterApar::create($request->all());
-
-        // 3. Cek apakah APAR BARU dicentang
-        if ($request->has('is_new_apar')) {
-            // 4. Ambil ID dari vendor, kebutuhan, dan biaya
-            $kebutuhan = Kebutuhan::where('nama_kebutuhan', 'Beli Baru')->first();
-            $biaya = HargaKebutuhan::where('vendor_id', $request->vendor_id)
-                                    ->where('kebutuhan_id', $kebutuhan->id)
-                                    ->where('jenis_pemadam_id', $request->jenis_pemadam_id)
-                                    ->where('jenis_isi_id', $request->jenis_isi_id)
-                                    ->first();
-            
-            // Periksa jika data yang dibutuhkan ditemukan
-            if ($kebutuhan && $biaya) {
-                // 5. Simpan transaksi ke tabel 'transaksis'
-                Transaksi::create([
-                    'master_apar_id' => $apar->id,
-                    'vendor_id' => $request->vendor_id,
-                    'kebutuhan_id' => $kebutuhan->id,
-                    'biaya_id' => $biaya->id,
-                    'tanggal_pembelian' => $request->tanggal_pembelian,
-                ]);
-            }
+    
+        try {
+            DB::beginTransaction();
+    
+            // Buat entri Transaksi
+            Transaksi::create([
+                'vendor_id' => $validatedData['vendor_id'],
+                'kebutuhan_id' => $validatedData['kebutuhan_id'],
+                'master_apar_id' => $validatedData['master_apar_id'],
+                'biaya_id' => $validatedData['biaya_id'], // Perbaikan di sini
+                'biaya' => $validatedData['biaya'],
+                'tanggal_pembelian' => $validatedData['tanggal_pembelian'],
+                // 'tanggal_pelunasan' => $validatedData['tanggal_pelunasan']
+            ]);
+    
+            DB::commit();
+    
+            return redirect()->route('transaksi.index')->with('success', 'Transaksi berhasil ditambahkan.');
+    
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Gagal menambahkan transaksi: ' . $e->getMessage())->withInput();
         }
-
-        return redirect()->route('master-apar.index')->with('success', 'Data APAR berhasil ditambahkan');
     }
 
     /**
@@ -158,47 +149,62 @@ class TransaksiController extends Controller
      */
     public function edit(Transaksi $transaksi)
     {
-        // Memuat relasi masterApar untuk mendapatkan jenis_pemadam_id dan jenis_isi_id
-        $transaksi->load('masterApar');
-
         $vendors = Vendor::all();
         $kebutuhans = Kebutuhan::all();
         $masterApars = MasterApar::all();
         $hargaKebutuhans = HargaKebutuhan::all();
-        // Menambahkan variabel yang diperlukan untuk tampilan edit
         $jenisPemadams = JenisPemadam::all();
         $jenisIsis = JenisIsi::all();
         $itemChecks = ItemCheck::all();
-        return view('pages.transaksi.edit', compact('transaksi', 'vendors', 'kebutuhans', 'masterApars', 'hargaKebutuhans', 'jenisPemadams', 'jenisIsis', 'itemChecks'));
+
+        // Cari HargaKebutuhan yang terkait dengan transaksi ini
+        $harga_kebutuhan = HargaKebutuhan::find($transaksi->biaya_id);
+
+        return view('pages.transaksi.edit', compact(
+            'transaksi',
+            'vendors',
+            'kebutuhans',
+            'masterApars',
+            'hargaKebutuhans',
+            'jenisPemadams',
+            'jenisIsis',
+            'itemChecks',
+            'harga_kebutuhan' // Kirim data harga_kebutuhan ke view
+        ));
     }
 
-    /**
-     * Perbarui transaksi yang ada di database.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Transaksi  $transaksi
-     * @return \Illuminate\Http\RedirectResponse
-     */
     public function update(Request $request, Transaksi $transaksi)
     {
-        $request->validate([
+        $validatedData = $request->validate([
             'vendor_id' => 'required|exists:vendors,id',
             'kebutuhan_id' => 'required|exists:kebutuhans,id',
             'master_apar_id' => 'nullable|exists:master_apars,id',
+            'biaya_id' => 'required|exists:harga_kebutuhans,id',
+            'biaya' => 'required|numeric',
             'tanggal_pembelian' => 'required|date',
-            'tanggal_pelunasan' => 'nullable|date',
-            'harga_kebutuhan_id' => 'required|exists:harga_kebutuhans,id',
         ]);
-
-        $hargaKebutuhan = HargaKebutuhan::findOrFail($request->input('harga_kebutuhan_id'));
-        $biaya = $hargaKebutuhan->biaya;
-
-        $transaksi->update(array_merge($request->except('biaya_display'), [
-            'biaya_id' => $hargaKebutuhan->id,
-            'biaya' => $biaya,
-        ]));
-
-        return redirect()->route('transaksi.index')->with('success', 'Transaksi berhasil diperbarui!');
+    
+        try {
+            DB::beginTransaction();
+    
+            $transaksi->update([
+                'vendor_id' => $validatedData['vendor_id'],
+                'kebutuhan_id' => $validatedData['kebutuhan_id'],
+                'master_apar_id' => $validatedData['master_apar_id'],
+                'biaya_id' => $validatedData['biaya_id'],
+                'biaya' => $validatedData['biaya'],
+                'tanggal_pembelian' => $validatedData['tanggal_pembelian'],
+            ]);
+    
+            DB::commit();
+    
+            return redirect()->route('transaksi.index')->with('success', 'Transaksi berhasil diperbarui.');
+    
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Gagal memperbarui transaksi: ' . $e->getMessage()); // Log error untuk debugging
+            return redirect()->back()->with('error', 'Gagal memperbarui transaksi: ' . $e->getMessage())->withInput();
+        }
     }
 
     /**
@@ -259,38 +265,30 @@ class TransaksiController extends Controller
      */
     public function exportExcel(Request $request)
     {
-        // Mulai query untuk model Transaksi
         $query = Transaksi::query()->with(['vendor', 'kebutuhan', 'masterApar', 'hargaKebutuhan']);
-
-        // Ambil tanggal awal dari request, jika ada
         $startDate = $request->input('start_date');
-
-        // Ambil tanggal akhir dari request, jika ada
         $endDate = $request->input('end_date');
 
-        // Jika tanggal awal dan tanggal akhir disediakan, tambahkan filter
         if ($startDate && $endDate) {
             $query->whereBetween('tanggal_pembelian', [$startDate, $endDate]);
         }
         
-        // Dapatkan data transaksi yang telah difilter
         $transaksis = $query->orderBy('tanggal_pembelian', 'asc')->get();
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         
-        // Format tanggal untuk judul
         $titleStartDate = $startDate ? Carbon::parse($startDate)->format('d F Y') : 'Awal';
         $titleEndDate = $endDate ? Carbon::parse($endDate)->format('d F Y') : 'Sekarang';
         
-        // Baris 1: Informasi Tanggal dan judul
+        // Merge cells disesuaikan menjadi A1:F1
         $sheet->setCellValue('A1', 'Laporan Riwayat Transaksi: ' . $titleStartDate . ' - ' . $titleEndDate);
-        $sheet->mergeCells('A1:G1');
+        $sheet->mergeCells('A1:F1'); 
         $sheet->getStyle('A1')->getFont()->setBold(true);
         $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-        // Baris 2: Header Tabel
-        $headers = ['No.', 'Kode APAR', 'Vendor', 'Kebutuhan', 'Tanggal Pembelian', 'Tanggal Pelunasan', 'Biaya'];
+        // Hapus 'Tanggal Pelunasan' dari headers
+        $headers = ['No.', 'Kode APAR', 'Vendor', 'Kebutuhan', 'Tanggal Pembelian', 'Biaya'];
         $column = 'A';
         foreach ($headers as $header) {
             $sheet->setCellValue($column . '2', $header);
@@ -304,50 +302,53 @@ class TransaksiController extends Controller
         
         foreach ($transaksis as $transaksi) {
             $biaya = optional($transaksi->hargaKebutuhan)->biaya ?? 0;
+            $kebutuhanType = optional($transaksi->kebutuhan)->kebutuhan;
+            $ukuranApar = optional($transaksi->masterApar)->ukuran ?? 1;
             
+            if (in_array($kebutuhanType, ['Beli Baru', 'Isi Ulang'])) {
+                $biaya = $biaya * $ukuranApar;
+            }
+
             $sheet->setCellValue('A' . $row, $no++);
             $sheet->setCellValue('B' . $row, optional($transaksi->masterApar)->kode);
             $sheet->setCellValue('C' . $row, optional($transaksi->vendor)->nama_vendor);
             $sheet->setCellValue('D' . $row, optional($transaksi->kebutuhan)->kebutuhan);
             $sheet->setCellValue('E' . $row, $transaksi->tanggal_pembelian);
-            $sheet->setCellValue('F' . $row, $transaksi->tanggal_pelunasan);
-            $sheet->setCellValue('G' . $row, $biaya);
+            // Hapus baris berikut: $sheet->setCellValue('F' . $row, $transaksi->tanggal_pelunasan);
+            $sheet->setCellValue('F' . $row, $biaya);
             
-            $sheet->getStyle('G' . $row)->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle('F' . $row)->getNumberFormat()->setFormatCode('#,##0');
 
             $totalBiaya += $biaya;
             $row++;
         }
         
-        // Baris Total Biaya (dengan penggabungan sel A-F)
-        $sheet->mergeCells('A' . $row . ':F' . $row);
+        // Baris Total Biaya, merge cells disesuaikan menjadi A:E
+        $sheet->mergeCells('A' . $row . ':E' . $row);
         $sheet->setCellValue('A' . $row, 'Total Biaya');
         $sheet->getStyle('A' . $row)->getFont()->setBold(true);
         $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-        $sheet->setCellValue('G' . $row, $totalBiaya);
-        $sheet->getStyle('G' . $row)->getFont()->setBold(true);
-        $sheet->getStyle('G' . $row)->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->setCellValue('F' . $row, $totalBiaya);
+        $sheet->getStyle('F' . $row)->getFont()->setBold(true);
+        $sheet->getStyle('F' . $row)->getNumberFormat()->setFormatCode('#,##0');
 
-        // Baris Total Transaksi (dengan penggabungan sel A-F)
+        // Baris Total Transaksi, merge cells disesuaikan menjadi A:E
         $row++;
-        $sheet->mergeCells('A' . $row . ':F' . $row);
+        $sheet->mergeCells('A' . $row . ':E' . $row);
         $sheet->setCellValue('A' . $row, 'Total Transaksi');
         $sheet->getStyle('A' . $row)->getFont()->setBold(true);
         $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-        $sheet->setCellValue('G' . $row, $transaksis->count());
-        $sheet->getStyle('G' . $row)->getFont()->setBold(true);
+        $sheet->setCellValue('F' . $row, $transaksis->count());
+        $sheet->getStyle('F' . $row)->getFont()->setBold(true);
 
-        // Styling Border
         $highestRow = $sheet->getHighestRow();
         $highestColumn = $sheet->getHighestColumn();
         $sheet->getStyle('A2:' . $highestColumn . $highestRow)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-        // Auto size kolom
         foreach (range('A', $highestColumn) as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
 
-        // Set header untuk download
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment;filename="Laporan-Transaksi-' . Carbon::now()->format('Y-m-d') . '.xlsx"');
         header('Cache-Control: max-age=0');

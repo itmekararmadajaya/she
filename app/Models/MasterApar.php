@@ -56,6 +56,11 @@ class MasterApar extends Model
     {
         return $this->belongsTo(Gedung::class, 'gedung_id');
     }
+    
+    public function penggunaan()
+    {
+        return $this->hasOne(Penggunaan::class, 'master_apar_id');
+    }
 
     /**
      * Relasi dengan model JenisIsi.

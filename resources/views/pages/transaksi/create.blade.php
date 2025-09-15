@@ -39,7 +39,6 @@
                     </select>
                 </div>
 
-                <!-- Kelompok dropdown untuk "Isi Ulang" -->
                 <div id="isiUlangGroup" style="display:none;">
                     <div class="mb-3">
                         <label for="jenis_pemadam_id" class="form-label">Jenis Pemadam</label>
@@ -61,7 +60,6 @@
                     </div>
                 </div>
 
-                <!-- Kelompok dropdown untuk "Ganti Komponen" -->
                 <div id="gantiKomponenGroup" style="display:none;">
                     <div class="mb-3">
                         <label for="item_check_id" class="form-label">Jenis Komponen</label>
@@ -71,25 +69,18 @@
                     </div>
                 </div>
 
-                <!-- Input tersembunyi untuk menyimpan ID harga_kebutuhan -->
-                <input type="hidden" id="harga_kebutuhan_id" name="harga_kebutuhan_id">
+                <input type="hidden" id="biaya_id" name="biaya_id">
 
-                <!-- Input untuk menampilkan biaya -->
                 <div class="mb-3">
-                    <label for="biaya" class="form-label">Biaya</label>
-                    <input type="text" class="form-control" id="biaya" name="biaya_display" readonly placeholder="Pilih Vendor dan Kebutuhan">
+                    <label for="biaya_display" class="form-label">Biaya</label>
+                    <input type="text" class="form-control" id="biaya_display" readonly placeholder="Pilih Vendor dan Kebutuhan">
                 </div>
                 <input type="hidden" id="hidden_biaya" name="biaya">
-
 
                 <div class="mb-3">
                     <label for="tanggal_pembelian" class="form-label">Tanggal Pembelian</label>
                     <input type="date" class="form-control" id="tanggal_pembelian" name="tanggal_pembelian" required>
                 </div>
-                <!-- <div class="mb-3">
-                    <label for="tanggal_pelunasan" class="form-label">Tanggal Pelunasan (Opsional)</label>
-                    <input type="date" class="form-control" id="tanggal_pelunasan" name="tanggal_pelunasan">
-                </div> -->
 
                 <button type="submit" class="btn btn-primary">Simpan</button>
                 <a href="{{ route('transaksi.index') }}" class="btn btn-secondary">Batal</a>
@@ -103,7 +94,6 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
     $(document).ready(function() {
-        // Data master dari backend
         const masterApars = @json($masterApars);
         const itemChecks = @json($itemChecks);
         const hargaKebutuhans = @json($hargaKebutuhans);
@@ -113,12 +103,11 @@
         const jenisIsiSelect = $('#jenis_isi_id');
         const masterAparSelect = $('#master_apar_id');
         const kebutuhanSelect = $('#kebutuhan_id');
-        const biayaInput = $('#biaya');
-        const hargaIdInput = $('#harga_kebutuhan_id');
+        const biayaDisplayInput = $('#biaya_display');
+        const biayaIdInput = $('#biaya_id');
         const hiddenBiayaInput = $('#hidden_biaya');
         const itemCheckSelect = $('#item_check_id');
 
-        // Fungsi untuk mengaktifkan/menonaktifkan input
         function toggleInputStatus(isEnabled) {
             jenisPemadamSelect.prop('disabled', !isEnabled);
             jenisIsiSelect.prop('disabled', !isEnabled);
@@ -187,8 +176,8 @@
             const masterAparId = masterAparSelect.val();
             const itemCheckId = parseInt(itemCheckSelect.val());
 
-            biayaInput.val('').attr('placeholder', 'Memuat biaya...');
-            hargaIdInput.val('');
+            biayaDisplayInput.val('').attr('placeholder', 'Memuat biaya...');
+            biayaIdInput.val('');
             hiddenBiayaInput.val('');
 
             let foundPrice = null;
@@ -220,10 +209,10 @@
                                 parseInt(harga.jenis_isi_id) === jenisIsiId
                             );
                             if (foundPrice) {
-                                finalBiaya = foundPrice.biaya; // Tidak ada APAR yang dipilih, jadi gunakan biaya dasar
+                                finalBiaya = foundPrice.biaya;
                             }
                         } else {
-                            biayaInput.val('').attr('placeholder', 'Pilih Jenis Pemadam dan Jenis Isi');
+                            biayaDisplayInput.val('').attr('placeholder', 'Pilih Jenis Pemadam dan Jenis Isi');
                             return;
                         }
                     }
@@ -235,15 +224,15 @@
                             parseInt(harga.item_check_id) === itemCheckId
                         );
                         if (foundPrice) {
-                            finalBiaya = foundPrice.biaya; // Gunakan biaya dasar untuk ganti komponen
+                            finalBiaya = foundPrice.biaya;
                         }
                     } else {
-                        biayaInput.val('').attr('placeholder', 'Pilih Jenis Komponen');
+                        biayaDisplayInput.val('').attr('placeholder', 'Pilih Jenis Komponen');
                         return;
                     }
                 }
             } else {
-                biayaInput.val('').attr('placeholder', 'Pilih Vendor dan Kebutuhan');
+                biayaDisplayInput.val('').attr('placeholder', 'Pilih Vendor dan Kebutuhan');
                 return;
             }
 
@@ -253,22 +242,20 @@
                     currency: 'IDR',
                     minimumFractionDigits: 0
                 }).format(finalBiaya);
-                biayaInput.val(formattedBiaya);
+                biayaDisplayInput.val(formattedBiaya);
                 hiddenBiayaInput.val(finalBiaya);
-                hargaIdInput.val(foundPrice.id);
+                biayaIdInput.val(foundPrice.id);
             } else {
-                biayaInput.val('').attr('placeholder', 'Harga tidak ditemukan untuk kombinasi ini.');
+                biayaDisplayInput.val('').attr('placeholder', 'Harga tidak ditemukan untuk kombinasi ini.');
                 hiddenBiayaInput.val('');
-                hargaIdInput.val('');
+                biayaIdInput.val('');
             }
         }
 
-        // Event listener untuk dropdown kebutuhan
         kebutuhanSelect.change(function() {
             toggleKebutuhanFields();
         });
 
-        // Event listener untuk dropdown APAR
         masterAparSelect.change(function() {
             const selectedAparId = $(this).val();
             const selectedKebutuhan = kebutuhanSelect.find('option:selected').text().trim();
@@ -286,17 +273,14 @@
             getHargaData();
         });
 
-        // Event listener untuk dropdown vendor
         $('#vendor_id').change(function() {
             toggleKebutuhanFields();
         });
 
-        // Event listener untuk dropdown yang relevan untuk mendapatkan biaya
         $('#jenis_pemadam_id, #jenis_isi_id, #item_check_id').change(function() {
             getHargaData();
         });
 
-        // Panggil saat halaman dimuat untuk mengatur tampilan awal
         toggleKebutuhanFields();
     });
 </script>

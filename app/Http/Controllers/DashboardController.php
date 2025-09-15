@@ -7,6 +7,7 @@ use App\Models\MasterApar;
 use App\Models\AparInspection;
 use App\Models\Transaksi;
 use App\Models\AparInspectionDetail;
+use App\Models\Penggunaan; // Import model Penggunaan
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -31,32 +32,40 @@ class DashboardController extends Controller
 
         // --- Logika Status APAR (GOOD/NOT GOOD) - Menggunakan data inspeksi terbaru ---
         
-        // 1. Dapatkan ID inspeksi terbaru untuk setiap APAR
-        $latestInspections = AparInspection::select('master_apar_id', DB::raw('MAX(id) as latest_inspection_id'))
-            ->whereBetween('date', [$displayStartDate, $displayEndDate])
-            ->groupBy('master_apar_id');
+        // 1. Dapatkan ID APAR yang memiliki setidaknya satu item yang 'tidak baik' (NOT GOOD)
+        // Berdasarkan detail inspeksi terbaru. Kami menggunakan subquery untuk menemukan
+        // ID inspeksi terbaru (maksimum ID) untuk setiap master_apar.
+        $notGoodAparIds = AparInspectionDetail::where('value', '!=', 'B')
+            ->whereIn('apar_inspection_id', function ($query) {
+                $query->select(DB::raw('MAX(id)'))
+                      ->from('apar_inspections')
+                      ->groupBy('master_apar_id');
+            })
+            ->join('apar_inspections', 'apar_inspection_details.apar_inspection_id', '=', 'apar_inspections.id')
+            ->distinct()
+            ->pluck('apar_inspections.master_apar_id');
 
-        // 2. Temukan ID APAR yang memiliki setidaknya satu item yang 'tidak baik'
-        //    Berdasarkan detail inspeksi terbaru
-        $notGoodAparIds = AparInspectionDetail::joinSub($latestInspections, 'latest_inspections', function ($join) {
-            $join->on('apar_inspection_details.apar_inspection_id', '=', 'latest_inspections.latest_inspection_id');
-        })
-        ->where('apar_inspection_details.value', '!=', 'B')
-        ->pluck('latest_inspections.master_apar_id')
-        ->unique();
+        // 2. Dapatkan ID APAR dari tabel Penggunaan dengan status 'NOT GOOD'
+        $notGoodPenggunaanIds = Penggunaan::where('status', 'NOT GOOD')
+                                         ->pluck('master_apar_id');
         
-        // 3. Dapatkan semua APAR yang aktif
+        // 3. Gabungkan kedua koleksi ID dan ambil ID unik
+        $finalNotGoodAparIds = $notGoodAparIds
+                                         ->merge($notGoodPenggunaanIds)
+                                         ->unique();
+
+        // 4. Dapatkan semua APAR yang aktif
         $activeAparInGedungs = MasterApar::where('is_active', true)->get()->groupBy('gedung_id');
         
         $dataGood = [];
         $dataNotGood = [];
         
-        // 4. Hitung jumlah GOOD dan NOT GOOD per gedung
+        // 5. Hitung jumlah GOOD dan NOT GOOD per gedung
         foreach ($gedungs as $gedung) {
             $aparInThisGedung = $activeAparInGedungs->get($gedung->id, collect());
             
-            $goodCount = $aparInThisGedung->whereNotIn('id', $notGoodAparIds)->count();
-            $notGoodCount = $aparInThisGedung->whereIn('id', $notGoodAparIds)->count();
+            $goodCount = $aparInThisGedung->whereNotIn('id', $finalNotGoodAparIds)->count();
+            $notGoodCount = $aparInThisGedung->whereIn('id', $finalNotGoodAparIds)->count();
             
             $dataGood[] = $goodCount;
             $dataNotGood[] = $notGoodCount;
@@ -85,8 +94,17 @@ class DashboardController extends Controller
             ->whereYear('date', $currentYear)
             ->pluck('master_apar_id');
         $uninspectedApars = MasterApar::whereNotIn('id', $inspectedAparIds)
+            ->where('is_active', true) // Filter APAR yang aktif saja
             ->with('gedung') 
             ->get();
+
+        // --- Logika Notifikasi APAR Digunakan ---
+        $usedApars = Penggunaan::with('masterApar.gedung')
+            ->where('status', 'NOT GOOD')
+            ->get()
+            ->map(function ($penggunaan) {
+                return $penggunaan->masterApar;
+            });
             
         // --- Logika Tabel Rekap Inspeksi Per Area - Dioptimalkan ---
         // Menggunakan satu query untuk mendapatkan jumlah inspeksi per gedung.
@@ -114,19 +132,18 @@ class DashboardController extends Controller
             $totalUninspected += $uninspectedCount;
         }
 
-        // --- MENGHITUNG TOTAL PENGELUARAN (Terpengaruh Filter Tanggal) ---
-        // Menggunakan join ke tabel master_apars dan mengambil ukuran
+        // --- MENGHITUNG TOTAL PENGELUARAN (Sesuai dengan logika baru) ---
         $totalPengeluaran = Transaksi::join('master_apars', 'transaksis.master_apar_id', '=', 'master_apars.id')
             ->join('harga_kebutuhans', 'transaksis.biaya_id', '=', 'harga_kebutuhans.id')
             ->whereBetween('transaksis.tanggal_pembelian', [$displayStartDate, $displayEndDate])
-            ->sum(DB::raw('harga_kebutuhans.biaya * master_apars.ukuran'));
+            ->sum(DB::raw('CASE WHEN transaksis.kebutuhan_id IN (1, 2) THEN harga_kebutuhans.biaya * master_apars.ukuran ELSE harga_kebutuhans.biaya END'));
 
         // --- LOGIKA GRAFIK KEUANGAN BULANAN (Perbaikan) ---
         // Mengganti DATE_FORMAT dengan strftime untuk kompatibilitas SQLite
         $monthlyPengeluaran = Transaksi::join('master_apars', 'transaksis.master_apar_id', '=', 'master_apars.id')
             ->join('harga_kebutuhans', 'transaksis.biaya_id', '=', 'harga_kebutuhans.id')
             ->select(
-                DB::raw('SUM(harga_kebutuhans.biaya * master_apars.ukuran) as total_biaya'),
+                DB::raw('SUM(CASE WHEN transaksis.kebutuhan_id IN (1, 2) THEN harga_kebutuhans.biaya * master_apars.ukuran ELSE harga_kebutuhans.biaya END) as total_biaya'),
                 DB::raw('strftime("%Y-%m", transaksis.tanggal_pembelian) as month_year')
             )
             ->whereBetween('transaksis.tanggal_pembelian', [$displayStartDate, $displayEndDate])
@@ -170,6 +187,7 @@ class DashboardController extends Controller
             'totalUninspected',
             'expiredApar',
             'expiringSoonApar',
+            'usedApars', // Tambahkan variabel ini
             'totalPengeluaran',
             'labelsPengeluaran',
             'dataPengeluaran'

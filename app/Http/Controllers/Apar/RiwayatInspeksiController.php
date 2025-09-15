@@ -19,16 +19,16 @@ class RiwayatInspeksiController extends Controller
      */
     public function index(Request $request)
     {
+        // 1. Tambahkan nilai default untuk tanggal
+        // Jika parameter tidak ada, gunakan awal dan akhir bulan saat ini.
+        $startDate = $request->input('start_date', Carbon::now()->startOfMonth()->toDateString());
+        $endDate = $request->input('end_date', Carbon::now()->endOfMonth()->toDateString());
+
         $query = AparInspection::with(['masterApar.gedung', 'user'])
             ->orderBy('date', 'desc');
 
-        // Menambahkan logika filtering berdasarkan tanggal
-        if ($request->filled(['start_date', 'end_date'])) {
-            $startDate = Carbon::parse($request->input('start_date'))->startOfDay();
-            $endDate = Carbon::parse($request->input('end_date'))->endOfDay();
-            
-            $query->whereBetween('date', [$startDate, $endDate]);
-        }
+        // 2. Selalu terapkan filter tanggal dengan nilai yang sudah ditentukan di atas
+        $query->whereBetween('date', [$startDate, $endDate]);
 
         // Menambahkan logika pencarian
         if ($request->filled('q')) {
@@ -36,7 +36,7 @@ class RiwayatInspeksiController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->whereHas('masterApar', function ($qApar) use ($search) {
                     $qApar->where('kode', 'like', "%{$search}%")
-                          ->orWhere('lokasi', 'like', "%{$search}%");
+                        ->orWhere('lokasi', 'like', "%{$search}%");
                 })
                 ->orWhereHas('user', function ($qUser) use ($search) {
                     $qUser->where('name', 'like', "%{$search}%");

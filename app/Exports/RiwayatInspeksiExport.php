@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Models\AparInspection;
+use App\Models\ItemCheck;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -18,10 +19,12 @@ use Illuminate\Support\Facades\Storage;
 class RiwayatInspeksiExport implements FromCollection, WithStyles, WithHeadings, WithEvents, ShouldAutoSize
 {
     protected $request;
+    protected $itemChecks;
 
     public function __construct(Request $request)
     {
         $this->request = $request;
+        $this->itemChecks = ItemCheck::orderBy('urutan')->get();
     }
 
     public function collection()
@@ -43,7 +46,7 @@ class RiwayatInspeksiExport implements FromCollection, WithStyles, WithHeadings,
             $query->where(function ($q) use ($search) {
                 $q->whereHas('masterApar', function ($qApar) use ($search) {
                     $qApar->where('kode', 'like', "%{$search}%")
-                            ->orWhere('lokasi', 'like', "%{$search}%");
+                                 ->orWhere('lokasi', 'like', "%{$search}%");
                 })
                 ->orWhereHas('user', function ($qUser) use ($search) {
                     $qUser->where('name', 'like', "%{$search}%");
@@ -53,58 +56,75 @@ class RiwayatInspeksiExport implements FromCollection, WithStyles, WithHeadings,
         
         $inspections = $query->get();
         
-        // Kembalikan data tanpa baris judul
         return $inspections->map(function ($row) {
-            $detailsString = $row->details->map(function ($detail) {
-                $statusText = 'Tidak Ada';
-                if ($detail->value == 'B') {
-                    $statusText = 'Baik';
-                } elseif ($detail->value == 'R') {
-                    $statusText = 'Rusak';
-                } elseif ($detail->value == 'Over') {
-                    $statusText = 'Over Pressure';
-                } elseif ($detail->value == 'Low') {
-                    $statusText = 'Low Pressure';
-                }
-                
-                $remark = $detail->remark ?: '-';
-                
-                return "{$detail->itemCheck->name}: {$statusText} ({$remark})";
-            })->implode(', ');
-            
-            return [
+            $rowData = [
                 $row->masterApar->kode,
                 $row->masterApar->gedung->nama . ' - ' . $row->masterApar->lokasi,
                 $row->user->name,
                 Carbon::parse($row->date)->translatedFormat('d F Y'),
                 $row->status,
-                $detailsString,
-                $row->final_foto_path,
             ];
+            
+            // Tambahkan kolom untuk setiap item check
+            foreach ($this->itemChecks as $itemCheck) {
+                $detail = $row->details->where('item_check_id', $itemCheck->id)->first();
+                
+                $statusText = 'Tidak Ada';
+                $remark = '';
+
+                if ($detail) {
+                    if ($detail->value == 'B') {
+                        $statusText = 'Baik';
+                    } elseif ($detail->value == 'R') {
+                        $statusText = 'Rusak';
+                    } elseif ($detail->value == 'Over') {
+                        $statusText = 'Over Pressure';
+                    } elseif ($detail->value == 'Low') {
+                        $statusText = 'Low Pressure';
+                    }
+                    $remark = $detail->remark ?: '';
+                }
+
+                $rowData[] = $statusText . ($remark ? " ($remark)" : '');
+            }
+
+            // Tambahkan kolom foto dan nama foto
+            $rowData[] = $row->final_foto_path;
+            $rowData[] = pathinfo($row->final_foto_path, PATHINFO_BASENAME);
+
+            return $rowData;
         });
     }
     
     // Menentukan judul kolom
     public function headings(): array
     {
-        return [
+        $mainHeadings = [
             'Kode APAR',
             'Lokasi',
             'Petugas',
             'Tanggal',
             'Status',
-            'Hasil Inspeksi',
-            'Foto Akhir',
+        ];
+
+        // Ambil nama-nama item check dari database
+        $itemCheckNames = $this->itemChecks->pluck('name')->toArray();
+        
+        // Gabungkan semua heading
+        $allHeadings = array_merge($mainHeadings, $itemCheckNames, ['Foto', 'Nama Foto']);
+
+        return [
+            $allHeadings
         ];
     }
     
     // Menambahkan styling pada Excel
     public function styles(Worksheet $sheet)
     {
-        // Gaya untuk baris kedua (headings)
-        $sheet->getStyle('A1:G1')->applyFromArray([
+        // Gaya untuk baris heading
+        $sheet->getStyle('A1:' . $sheet->getHighestColumn() . '1')->applyFromArray([
             'font' => ['bold' => true, 'size' => 12],
-            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
+            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER, 'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_TOP],
             'fill' => [
                 'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
                 'startColor' => ['argb' => 'FFE5E7EB'],
@@ -112,17 +132,30 @@ class RiwayatInspeksiExport implements FromCollection, WithStyles, WithHeadings,
         ]);
         
         // Gaya untuk baris data
-        $sheet->getStyle('A3:G' . ($sheet->getHighestRow()))->getAlignment()->setWrapText(true);
-        $sheet->getStyle('A3:G' . ($sheet->getHighestRow()))->getAlignment()->setVertical('top');
-        
-        // Set lebar kolom
-        $sheet->getColumnDimension('A')->setWidth(15);
-        $sheet->getColumnDimension('B')->setWidth(30);
-        $sheet->getColumnDimension('C')->setWidth(25);
+        $sheet->getStyle('A2:' . $sheet->getHighestColumn() . ($sheet->getHighestRow()))->getAlignment()->setWrapText(true);
+        $sheet->getStyle('A2:' . $sheet->getHighestColumn() . ($sheet->getHighestRow()))->getAlignment()->setVertical('top');
+
+        // Set lebar kolom dinamis
+        $sheet->getColumnDimension('A')->setWidth(20);
+        $sheet->getColumnDimension('B')->setWidth(20);
+        $sheet->getColumnDimension('C')->setWidth(20);
         $sheet->getColumnDimension('D')->setWidth(20);
         $sheet->getColumnDimension('E')->setWidth(15);
-        $sheet->getColumnDimension('F')->setWidth(50);
-        $sheet->getColumnDimension('G')->setWidth(25);
+        
+        // Lebar untuk setiap kolom item check
+        $itemCheckWidth = 15;
+        $startColumnIndex = 6;
+        foreach ($this->itemChecks as $index => $itemCheck) {
+            $column = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($startColumnIndex + $index);
+            $sheet->getColumnDimension($column)->setWidth($itemCheckWidth);
+        }
+
+        // Lebar untuk kolom Foto dan Nama Foto
+        $photoColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($startColumnIndex + $this->itemChecks->count());
+        $sheet->getColumnDimension($photoColumn)->setWidth(50);
+        
+        $nameColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($startColumnIndex + $this->itemChecks->count() + 1);
+        $sheet->getColumnDimension($nameColumn)->setWidth(25);
     }
     
     // Menangani event setelah spreadsheet dibuat untuk menyematkan gambar
@@ -133,23 +166,28 @@ class RiwayatInspeksiExport implements FromCollection, WithStyles, WithHeadings,
                 $sheet = $event->sheet->getDelegate();
                 
                 // Tambahkan baris judul di atas header
-                $startDate = $this->request->filled('start_date') ? Carbon::parse($this->request->input('start_date'))->translatedFormat('d F Y') : 'N/A';
-                $endDate = $this->request->filled('end_date') ? Carbon::parse($this->request->input('end_date'))->translatedFormat('d F Y') : 'N/A';
-                $titleText = 'Laporan Riwayat Inspeksi APAR: ' . $startDate . ' - ' . $endDate;
+                $startDate = $this->request->filled('start_date') ? Carbon::parse($this->request->input('start_date'))->translatedFormat('d F Y') : '-';
+                $endDate = $this->request->filled('end_date') ? Carbon::parse($this->request->input('end_date'))->translatedFormat('d F Y') : '-';
+                $titleText = "Laporan Riwayat Inspeksi APAR: {$startDate} - {$endDate}";
                 
                 // Sisipkan baris baru di atas baris header (baris 1)
                 $sheet->insertNewRowBefore(1, 1);
                 
                 // Setel nilai sel judul dan gabungkan sel-selnya
                 $sheet->setCellValue('A1', $titleText);
-                $sheet->mergeCells('A1:G1');
+                
+                $highestColumn = $sheet->getHighestColumn();
+                $sheet->mergeCells('A1:' . $highestColumn . '1');
+                
+                $sheet->getStyle('A1')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
 
-                // Proses penyematan gambar, dimulai dari baris ke-3
+                // Proses penyematan gambar, dimulai dari baris ke-2
                 $highestRow = $sheet->getHighestRow();
-                $startRow = 3;
+                $startRow = 2;
+                $photoColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(6 + $this->itemChecks->count());
 
                 for ($row = $startRow; $row <= $highestRow; $row++) {
-                    $cellValue = $sheet->getCell('G' . $row)->getValue();
+                    $cellValue = $sheet->getCell($photoColumn . $row)->getValue();
                     
                     if (!empty($cellValue) && Storage::disk('public')->exists($cellValue)) {
                         $imagePath = Storage::disk('public')->path($cellValue);
@@ -161,8 +199,11 @@ class RiwayatInspeksiExport implements FromCollection, WithStyles, WithHeadings,
                         $drawing->setDescription('Final APAR Inspection Photo');
                         $drawing->setPath($imagePath);
                         $drawing->setHeight(150);
-                        $drawing->setCoordinates('G' . $row);
+                        $drawing->setCoordinates($photoColumn . $row);
                         $drawing->setWorksheet($sheet);
+
+                        // Setelah gambar disematkan, hapus teks path-nya
+                        $sheet->setCellValue($photoColumn . $row, null);
                     }
                 }
             },

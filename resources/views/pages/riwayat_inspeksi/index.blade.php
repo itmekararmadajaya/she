@@ -20,13 +20,13 @@
                         <div class="col-lg-2">
                             <div class="form-group">
                                 <input type="date" class="form-control" name="start_date"
-                                    value="{{ request('start_date') }}">
+                                    value="{{ request('start_date', now()->startOfMonth()->toDateString()) }}">
                             </div>
                         </div>
                         <div class="col-lg-2">
                             <div class="form-group">
                                 <input type="date" class="form-control" name="end_date"
-                                    value="{{ request('end_date') }}">
+                                    value="{{ request('end_date', now()->endOfMonth()->toDateString()) }}">
                             </div>
                         </div>
                         <div class="col-lg-4">
@@ -68,7 +68,7 @@
                                     <span class="fw-semibold">{{$inspection->masterApar->kode}}</span>
                                 </td>
                                 <td>
-                                    {{$inspection->masterApar->gedung->nama}} - {{$inspection->masterApar->lokasi}}
+                                    {{$inspection->gedung->nama}} - {{$inspection->lokasi}}
                                 </td>
                                 <td>
                                     {{$inspection->user->name}}

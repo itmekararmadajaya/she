@@ -92,23 +92,25 @@ class VendorController extends Controller
     /**
      * Store a newly created resource in storage.
      */
+    // ... (Bagian validasi lainnya)
     public function store(Request $request)
     {
+        // Tambahkan validasi untuk array 'komponen' di dalam 'kebutuhan'
         $request->validate([
             'nama_vendor' => 'required|string|max:255',
             'kontak' => 'nullable|string|max:255',
             'kebutuhan' => 'required|array',
             'kebutuhan.*.kebutuhan_id' => 'required|exists:kebutuhans,id',
-            // Validasi untuk Beli Baru & Isi Ulang
             'kebutuhan.*.jenis_pemadam_id' => 'nullable|exists:jenis_pemadams,id',
             'kebutuhan.*.jenis_isi' => 'nullable|array',
             'kebutuhan.*.jenis_isi.*.jenis_isi_id' => 'required_with:kebutuhan.*.jenis_pemadam_id|exists:jenis_isis,id',
             'kebutuhan.*.jenis_isi.*.biaya' => 'required_with:kebutuhan.*.jenis_pemadam_id|numeric|min:0',
             'kebutuhan.*.jenis_isi.*.tanggal_perubahan' => 'required_with:kebutuhan.*.jenis_pemadam_id|date',
-            // Validasi untuk Ganti Komponen
-            'kebutuhan.*.item_check_id' => 'nullable|exists:item_checks,id',
-            'kebutuhan.*.biaya' => 'nullable|numeric|min:0',
-            'kebutuhan.*.tanggal_perubahan' => 'nullable|date',
+            // Validasi yang diubah untuk mencocokkan struktur JS
+            'kebutuhan.*.komponen' => 'nullable|array',
+            'kebutuhan.*.komponen.*.item_check_id' => 'required|exists:item_checks,id',
+            'kebutuhan.*.komponen.*.biaya' => 'required|numeric|min:0',
+            'kebutuhan.*.komponen.*.tanggal_perubahan' => 'required|date',
         ]);
 
         try {
@@ -125,7 +127,6 @@ class VendorController extends Controller
                 $kebutuhanName = $kebutuhanNames[$kebutuhanItem['kebutuhan_id']];
 
                 if ($kebutuhanName == 'Beli Baru' || $kebutuhanName == 'Isi Ulang') {
-                    // Logika untuk Beli Baru dan Isi Ulang
                     if (isset($kebutuhanItem['jenis_isi'])) {
                         foreach ($kebutuhanItem['jenis_isi'] as $isiItem) {
                             HargaKebutuhan::create([
@@ -139,16 +140,19 @@ class VendorController extends Controller
                         }
                     }
                 } elseif ($kebutuhanName == 'Ganti Komponen') {
-                    // Logika untuk Ganti Komponen
-                    HargaKebutuhan::create([
-                        'vendor_id' => $vendor->id,
-                        'kebutuhan_id' => $kebutuhanItem['kebutuhan_id'],
-                        'item_check_id' => $kebutuhanItem['item_check_id'],
-                        'biaya' => $kebutuhanItem['biaya'],
-                        'tanggal_perubahan' => $kebutuhanItem['tanggal_perubahan'],
-                    ]);
+                    // Ubah logika ini untuk memproses array 'komponen'
+                    if (isset($kebutuhanItem['komponen'])) {
+                        foreach ($kebutuhanItem['komponen'] as $komponenItem) {
+                            HargaKebutuhan::create([
+                                'vendor_id' => $vendor->id,
+                                'kebutuhan_id' => $kebutuhanItem['kebutuhan_id'],
+                                'item_check_id' => $komponenItem['item_check_id'],
+                                'biaya' => $komponenItem['biaya'],
+                                'tanggal_perubahan' => $komponenItem['tanggal_perubahan'],
+                            ]);
+                        }
+                    }
                 } else {
-                    // Logika untuk jenis kebutuhan lainnya
                     HargaKebutuhan::create([
                         'vendor_id' => $vendor->id,
                         'kebutuhan_id' => $kebutuhanItem['kebutuhan_id'],

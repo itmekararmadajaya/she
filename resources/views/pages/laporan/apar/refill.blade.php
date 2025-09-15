@@ -29,7 +29,7 @@
                             <tr>
                                 <th style="width: 1px;">No</th>
                                 <th>Kode</th>
-                                <th>Gedung</th>
+                                <th>Area</th>
                                 <th>Lokasi</th>
                                 <th>Tgl Kadaluarsa</th>
                                 <th>Status</th>

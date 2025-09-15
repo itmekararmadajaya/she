@@ -105,7 +105,7 @@
                     <td>
                         <div class="text-center">
                             @if ($apar->is_active)
-                                <i class="ph ph-check text-success"></i>
+                                <i class="ph ph-check" style="color: #006400;"></i>
                             @else
                                 <i class="text-danger">x</i>
                             @endif

@@ -20,20 +20,17 @@ use App\Http\Controllers\TransaksiController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\HargaKebutuhanController;
 use App\Http\Controllers\KebutuhanController;
+use App\Http\Controllers\HistoryController;
 use Illuminate\Http\Request;
 use App\Models\Kebutuhan;
 use App\Models\HargaKebutuhan;
+use App\Http\Controllers\EmailController;
 
 Route::redirect('/', '/login')->name('redirect-login');
 Route::get('/test-log', function () {
     Log::debug('Test log berhasil di ' . now());
     return 'Log berhasil ditulis, cek storage/logs/laravel.log';
 });
-
-// HALAMAN MENU
-// Route::get('/', function(){
-//     return view('pages.menu');
-// })->name('main-menu')->middleware('auth');
 
 // API
 Route::get('/route-tracker', [RouteTrackerController::class, 'showRoutes'])->name('route-tracker');
@@ -49,6 +46,14 @@ Route::get('/apar/uninspected', [AparController::class, 'uninspected'])->name('a
 // INSPEKSI BULANAN
 Route::get('/apar-inspections/monthly', [AparController::class, 'getMonthlyInspections'])->name('inspections.monthly');
 Route::get('/apar/uninspected', [AparController::class, 'getUninspectedApars'])->name('apar.uninspected');
+
+// EMAIL
+Route::resource('email', EmailController::class);
+
+//HISTORY
+Route::get('/history/pengisian', [HistoryController::class, 'pengisian'])->name('history.pengisian');
+Route::get('/history/pengisian/export', [HistoryController::class, 'exportPengisian'])->name('history.pengisian.export');
+Route::post('/history/pengisian/{id}/good', [HistoryController::class, 'updateStatusToGood'])->name('history.updateStatus');
 
 // DOWNLOAD QR Code
 Route::get('/apar/download-qr/{id}', [MasterAparController::class, 'downloadQr'])->name('apar.download.qr');
@@ -89,9 +94,6 @@ Route::get('/get-kebutuhans-by-vendor/{vendor_id}', function ($vendor_id) {
 // Route::get('/apar/search', [AparController::class, 'searchApar']);
 // Route::post('/apar/inspeksi', [AparController::class, 'storeInspeksi']);
 
-/*
- * Route for Admin Dashboard
- */
 Route::group(['middleware' => [AdminMiddleware::class]], function(){
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
@@ -123,24 +125,15 @@ Route::group(['prefix' => 'laporan', 'middleware' => [AdminMiddleware::class]], 
     });
 });
 
-/**
- * Route for User
- */
 // Route::group(['prefix' => 'apar', 'middleware' => 'auth'], function() {
     Route::get('inspeksi', [InspeksiController::class, 'index'])->name('apar.index');
 //     Route::post('inspeksi', [InspeksiController::class, 'inspeksi'])->name('apar.inspeksi');
 // });
 
-/**
- * Route for quick menu
- */
 Route::group(['prefix' => 'user/laporan'], function() {
     Route::get('yearly', [LaporanController::class, 'yearlyIndex'])->name('apar.user.laporan.yearly');
 });
 
-/**
- * Send mail notification
- */
 Route::group(['prefix' => 'notification'], function(){
     Route::get('apar-refill', [SendMailController::class, 'aparRefill'])->name('notification.apar-refill');
 });

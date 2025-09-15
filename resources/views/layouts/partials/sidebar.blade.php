@@ -35,12 +35,13 @@
                     </ul>
                 </li>
                 <li class="pc-item pc-hasmenu">
-                    <a href="#!" class="pc-link"><span class="pc-micon"> <i class="ph ph-align-bottom"></i> </span><span class="pc-mtext">Inspeksi</span><span class="pc-arrow"><i class="ti ti-chevron-right"></i></span></a>
+                    <a href="#!" class="pc-link"><span class="pc-micon"> <i class="ph ph-align-bottom"></i> </span><span class="pc-mtext">Laporan</span><span class="pc-arrow"><i class="ti ti-chevron-right"></i></span></a>
                     <ul class="pc-submenu">
                         <li class="pc-item"><a class="pc-link" href="{{route('riwayat-inspeksi')}}">Riwayat Inspeksi</a></li>
                         <li class="pc-item"><a class="pc-link" href="{{route('apar.uninspected')}}">Belum Inspeksi</a></li>
                         <li class="pc-item"><a class="pc-link" href="{{route('laporan.apar.refill-index')}}">Kadaluarsa</a></li>
                         <li class="pc-item"><a class="pc-link" href="{{route('laporan.apar.yearly-index')}}">Laporan Yearly</a></li>
+                        <li class="pc-item"><a class="pc-link" href="{{ route('history.pengisian') }}">History Penggunaan</a></li>
                     </ul>
                 </li>
                 <li class="pc-item pc-hasmenu">

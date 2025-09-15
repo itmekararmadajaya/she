@@ -46,7 +46,7 @@
                     </div>
 
                     <div class="col-md-2">
-                        <a href="{{ route('transaksi.index') }}" class="btn btn-light border w-100">Reset</a>
+                        <a href="{{ route('transaksi.index') }}" class="btn btn-warning border w-100">Reset</a>
                     </div>
                 </div>
             </form>

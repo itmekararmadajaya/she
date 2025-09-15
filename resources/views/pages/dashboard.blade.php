@@ -4,47 +4,12 @@
 
 @section('content')
 <div class="row">
-    {{-- Bagian Notifikasi Berjalan --}}
-    <div class="col-md-12 mb-1">
-        {{-- Banner Peringatan Kadaluarsa (Merah) --}}
-        @if (isset($expiredApar) && $expiredApar->isNotEmpty() || isset($expiringSoonApar) && $expiringSoonApar->isNotEmpty())
-            <a href="{{ route('laporan.apar.refill-index') }}" class="text-decoration-none d-block">
-                <div class="alert alert-danger mb-2 card p-3 card-custom-rounded shadow-lg" role="alert">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <span class="fw-bold">PERINGATAN KADALUARSA!</span>
-                    <div class="d-flex overflow-hidden">
-                        <span class="text-nowrap" style="animation: scroll-left 20s linear infinite;">
-                            @foreach ($expiredApar as $apar)
-                            <span>APAR dengan kode <b>{{ $apar->kode }}</b> di lokasi {{ $apar->gedung->nama }} - {{ $apar->lokasi }} <b>sudah kadaluarsa sejak {{ \Carbon\Carbon::parse($apar->tgl_kadaluarsa)->isoFormat('D MMMM YYYY') }}</b>.</span> | &nbsp;
-                            @endforeach
-                            @foreach ($expiringSoonApar as $apar)
-                            <span>APAR dengan kode <b>{{ $apar->kode }}</b> di lokasi {{ $apar->gedung->nama }} - {{ $apar->lokasi }} <b>akan kadaluarsa pada {{ \Carbon\Carbon::parse($apar->tgl_kadaluarsa)->isoFormat('D MMMM YYYY') }}</b>.</span> | &nbsp;
-                            @endforeach
-                        </span>
-                    </div>
-                </div>
-            </a>
-        @endif
-
-        {{-- Banner Peringatan Belum Inspeksi (Kuning) --}}
-        @if (isset($uninspectedApars) && $uninspectedApars->isNotEmpty())
-            <a href="{{ route('apar.uninspected') }}" class="text-decoration-none d-block">
-                <div class="alert alert-warning mb-2 card p-3 card-custom-rounded shadow-lg" role="alert">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <span class="fw-bold">APAR BELUM INSPEKSI!</span>
-                    <div class="d-flex overflow-hidden">
-                        <span class="text-nowrap" style="animation: scroll-left 20s linear infinite;">
-                            @foreach ($uninspectedApars as $apar)
-                                <span>APAR dengan kode <b>{{ $apar->kode }}</b> di lokasi {{ $apar->gedung->nama ?? 'N/A' }} - {{ $apar->lokasi }} <b>belum diinspeksi bulan ini</b>.</span> &nbsp;&nbsp; | &nbsp;&nbsp;
-                            @endforeach
-                        </span>
-                    </div>
-                </div>
-            </a>
-        @endif
+    {{-- Container untuk Push Notifikasi --}}
+    <div id="notification-container" class="position-fixed bottom-0 right-0 p-3" style="z-index: 1050;">
+        {{-- Notifikasi akan ditambahkan di sini oleh JavaScript --}}
     </div>
-    
 
+    {{-- Kode notifikasi yang lama telah dihapus dan diganti dengan JavaScript di bawah --}}
 
     <div class="card shadow-lg card p-3 card-custom-rounded">
         {{-- Bagian Filter Tanggal --}}
@@ -73,7 +38,7 @@
                         <div class="card-body d-flex flex-column justify-content-between">
                             <div class="d-flex justify-content-between align-items-center">
                                 <h6 class="mb-0 fw-semibold fs-3">TOTAL NOT GOOD</h6>
-                                <i class="fas fa-arrow-up-right-from-square fa-sm"></i>
+                                
                             </div>
                             <h3 class="mt-1 mb-0 display-4 fw-bold">{{ array_sum($dataNotGood) }}</h3>
                         </div>
@@ -84,7 +49,7 @@
                         <div class="card-body d-flex flex-column justify-content-between">
                             <div class="d-flex justify-content-between align-items-center">
                                 <h6 class="mb-0 fw-semibold fs-3">TOTAL GOOD</h6>
-                                <i class="fas fa-arrow-up-right-from-square fa-sm"></i>
+                                
                             </div>
                             <h3 class="mt-1 mb-0 display-4 fw-bold">{{ array_sum($dataGood) }}</h3>
                         </div>
@@ -95,7 +60,7 @@
                         <div class="card text-white h-100 card-custom-rounded p-3 shadow-lg" style="background-color: #39ade3ff">
                             <div class="card-body d-flex flex-column justify-content-between">
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <h6 class="mb-0 fw-semibold fs-3">TOTAL PENGELUARAN</h6>
+                                    <h6 class="mb-0 fw-semibold fs-3">PENGELUARAN</h6>
                                     <i class="fas fa-arrow-up-right-from-square fa-sm"></i>
                                 </div>
                                 <h3 class="mt-1 mb-0 display-4 fw-bold">{{ number_format($totalPengeluaran, 0, ',', '.') }}</h3>
@@ -123,7 +88,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     {{-- Card untuk Grafik Pengeluaran Bulanan --}}
                     <div class="col-md-12 mb-1">
                         <div class="card card-custom-rounded p-1 shadow-lg">
@@ -136,10 +101,9 @@
                         </div>
                     </div>
                 </div>
-                
+
                 {{-- Grup Kanan (Tabel) --}}
                 <div class="col-md-4">
-                    {{-- Card untuk Rekap Inspeksi Bulanan (Tabel) --}}
                     <div class="card h-100 card-custom-rounded shadow-lg d-flex flex-column" style="max-height: 655px; overflow-y: auto;">
                         <div class="card-header bg-white rounded-top-4 p-4">
                             <h2 class="mb-0 h3 fw-semibold">Rekap Inspeksi Bulanan</h2>
@@ -149,44 +113,50 @@
                             <table class="table table-bordered align-middle mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th style="width: 50px;">No</th>
-                                        <th>AREA</th>
+                                        <th style="width: 46px;">No</th>
+                                        <th style="width: 89px;">AREA</th>
+                                        {{-- Kolom baru untuk Jumlah Total APAR --}}
+                                        <th class="text-center" style="width: 131px;">TOTAL</th>
+                                        {{-- Pindahkan kolom 'SUDAH' ke kanan --}}
                                         <th class="text-center" style="width: 130px;">SUDAH</th>
-                                        <th class="text-center" style="width: 130px;">BELUM</th>
                                     </tr>
                                 </thead>
                             </table>
-                            
+
                             {{-- Bagian Tabel yang bisa di-scroll --}}
                             <div style="max-height: 400px; overflow-y: auto;">
                                 <table class="table table-bordered table-hover align-middle rounded-3">
                                     <tbody>
                                         @forelse ($inspectionsPerArea as $i => $data)
-                                        <tr>
-                                            <td style="width: 50px;">{{ $i + 1 }}</td>
-                                            <td>{{ $data['nama'] }}</td>
-                                            <td class="text-center" style="width: 130px;">{{ $data['inspected'] }}</td>
-                                            <td class="text-center" style="width: 130px;">{{ $data['uninspected'] }}</td>
-                                        </tr>
+                                            <tr>
+                                                <td style="width: 50px;">{{ $i + 1 }}</td>
+                                                <td>{{ $data['nama'] }}</td>
+                                                {{-- Tampilkan jumlah total APAR --}}
+                                                <td class="text-center" style="width: 130px;">{{ $data['inspected'] + $data['uninspected'] }}</td>
+                                                {{-- Pindahkan kolom 'SUDAH' ke kanan --}}
+                                                <td class="text-center" style="width: 130px;">{{ $data['inspected'] }}</td>
+                                            </tr>
                                         @empty
-                                        <tr>
-                                            <td colspan="4" class="text-center py-4 text-muted">
-                                                <i class="fas fa-info-circle me-2"></i>
-                                                Tidak ada data inspeksi yang ditemukan dalam periode ini.
-                                            </td>
-                                        </tr>
+                                            <tr>
+                                                <td colspan="5" class="text-center py-4 text-muted">
+                                                    <i class="fas fa-info-circle me-2"></i>
+                                                    Tidak ada data inspeksi yang ditemukan dalam periode ini.
+                                                </td>
+                                            </tr>
                                         @endforelse
                                     </tbody>
                                 </table>
                             </div>
-                            
+
                             {{-- Bagian Total (tidak bisa di-scroll) --}}
                             <div class="mt-auto">
                                 <table class="table table-bordered align-middle mb-0">
                                     <tr class="fw-bold table-primary">
-                                        <td colspan="2" style="width: 50px;">TOTAL</td>
-                                        <td class="text-center" style="width: 130px;">{{ $totalInspected }}</td>
-                                        <td class="text-center" style="width: 130px;">{{ $totalUninspected }}</td>
+                                        <td colspan="2" style="width: 135px;">TOTAL</td>
+                                        {{-- Tambahkan total untuk kolom baru --}}
+                                        <td class="text-center" style="width:100px;">{{ $totalInspected + $totalUninspected }}</td>
+                                        {{-- Pindahkan total 'SUDAH' ke kanan --}}
+                                        <td class="text-center" style="width: 100px;">{{ $totalInspected }}</td>
                                     </tr>
                                 </table>
                             </div>
@@ -205,18 +175,95 @@
 .card-custom-rounded {
     border-radius: 1rem !important;
 }
-@keyframes scroll-left {
-    0% {
-        transform: translateX(100%);
-    }
-    100% {
-        transform: translateX(-100%);
-    }
-}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('DOMContentLoaded', function() {
+        const notifications = [
+            @if (isset($expiredApar) && $expiredApar->isNotEmpty() || isset($expiringSoonApar) && $expiringSoonApar->isNotEmpty())
+            {
+                type: 'danger',
+                title: 'PERINGATAN KADALUARSA!',
+                message: 'Mohon segera refill',
+                link: '{{ route('laporan.apar.refill-index') }}'
+            },
+            @endif
+
+            @if (isset($uninspectedApars) && $uninspectedApars->isNotEmpty())
+            {
+                type: 'warning',
+                title: 'APAR BELUM INSPEKSI!',
+                message: 'Mohon segera inspeksi',
+                link: '{{ route('apar.uninspected') }}'
+            },
+            @endif
+
+            @if (isset($usedApars) && $usedApars->isNotEmpty())
+            {
+                type: 'success',
+                title: 'APAR TELAH DIGUNAKAN!',
+                message: 'Mohon segera refill',
+                link: '{{ route('history.pengisian') }}'
+            }
+            @endif
+        ];
+
+        function createToast(notification) {
+            const toast = document.createElement('div');
+            toast.className = `toast align-items-center text-white bg-${notification.type} border-0 show mt-2`;
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', 'assertive');
+            toast.setAttribute('aria-atomic', 'true');
+
+            const toastBody = document.createElement('div');
+            toastBody.className = 'd-flex';
+
+            const toastContent = document.createElement('div');
+            toastContent.className = 'toast-body';
+            toastContent.innerHTML = `<b>${notification.title}</b><br>${notification.message}`;
+
+            const closeButton = document.createElement('button');
+            closeButton.type = 'button';
+            closeButton.className = 'btn-close btn-close-white me-2 m-auto';
+            closeButton.setAttribute('data-bs-dismiss', 'toast');
+            closeButton.setAttribute('aria-label', 'Close');
+
+            closeButton.addEventListener('click', () => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 500);
+            });
+
+            if (notification.link && notification.link !== '#') {
+                const link = document.createElement('a');
+                link.href = notification.link;
+                link.className = 'text-decoration-none text-white';
+                link.appendChild(toastContent);
+                toastBody.appendChild(link);
+            } else {
+                toastBody.appendChild(toastContent);
+            }
+            toastBody.appendChild(closeButton);
+            toast.appendChild(toastBody);
+
+            document.getElementById('notification-container').appendChild(toast);
+        }
+
+        function showNotifications() {
+            notifications.forEach(notification => createToast(notification));
+        }
+
+        // --- Logika notifikasi baru yang tidak mengganggu skrip lain ---
+        const lastShown = localStorage.getItem('lastNotificationShown');
+        const now = Date.now();
+        const expiryDuration = 1000; 
+
+        if (!lastShown || (now - lastShown) > expiryDuration) {
+            showNotifications();
+            localStorage.setItem('lastNotificationShown', now);
+        }
+        // --- Akhir logika notifikasi baru ---
+    });
+
     // Skrip untuk Grafik Inspeksi Apar
     var ctxApar = document.getElementById('inspeksiAparChart').getContext('2d');
     var inspeksiAparChart = new Chart(ctxApar, {
@@ -318,6 +365,5 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
     });
-});
 </script>
 @endpush

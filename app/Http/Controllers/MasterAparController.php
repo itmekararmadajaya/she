@@ -141,13 +141,16 @@ class MasterAparController extends Controller
     /**
      * Store a newly created resource in storage.
      */
+    // app/Http/Controllers/MasterAparController.php
+
     public function store(Request $request)
     {
-        \Log::debug('Logging test at ' . now());
-        \Log::info('Store method called at ' . now() . '. Request data: ', $request->all());
-
         try {
-            echo "Validating data...<br>";
+            \DB::beginTransaction();
+
+            // Log: Tampilkan semua data request yang masuk
+            \Log::info('Incoming Request Data:', $request->all());
+
             $validated = $request->validate([
                 'kode' => 'required|string|max:8|unique:master_apars,kode',
                 'gedung_id' => 'required|exists:gedungs,id',
@@ -158,13 +161,16 @@ class MasterAparController extends Controller
                 'jenis_isi_id' => 'required|exists:jenis_isis,id',
                 'jenis_pemadam_id' => 'required|exists:jenis_pemadams,id',
                 'catatan' => 'nullable|string|max:255',
-                'is_new_apar' => 'nullable|boolean',
-                'vendor_id' => 'nullable|required_if:is_new_apar,1|exists:vendors,id', // Tambahkan 'nullable'
-                'tanggal_pembelian' => 'nullable|required_if:is_new_apar,1|date',
+                'is_new_apar' => 'nullable', 
+                'vendor_id' => 'required_if:is_new_apar,1|nullable|exists:vendors,id', // Ubah 'on' menjadi '1'
+                'tanggal_pembelian' => 'required_if:is_new_apar,1|nullable|date', // Ubah 'on' menjadi '1'
             ]);
+            
+            // Log: Tampilkan data yang sudah divalidasi
+            \Log::info('Validated Data:', $validated);
 
-            echo "Creating MasterApar...<br>";
-            $apar = MasterApar::create([
+            // 🔹 Simpan ke master_apars
+            $masterApar = MasterApar::create([
                 'kode' => $validated['kode'],
                 'gedung_id' => $validated['gedung_id'],
                 'lokasi' => $validated['lokasi'],
@@ -173,62 +179,66 @@ class MasterAparController extends Controller
                 'satuan' => $validated['satuan'],
                 'jenis_isi_id' => $validated['jenis_isi_id'],
                 'jenis_pemadam_id' => $validated['jenis_pemadam_id'],
-                'catatan' => $validated['catatan'],
-                'is_active' => true,
-                'vendor_id' => $request->has('is_new_apar') ? $validated['vendor_id'] : null,
-                'tanggal_pembelian' => $request->has('is_new_apar') ? $validated['tanggal_pembelian'] : null,
+                'catatan' => $validated['catatan'] ?? null,
+                'is_active' => 1,
             ]);
+            
+            // Log: Tampilkan ID APAR yang baru dibuat
+            \Log::info('New Master APAR created with ID:', ['id' => $masterApar->id]);
 
-            \Log::info('MasterApar created successfully. ID: ' . $apar->id . ', Kode: ' . $apar->kode);
-
-            if ($request->has('is_new_apar')) {
-                echo "Processing APAR BARU...<br>";
-                \Log::info('APAR BARU detected. Processing transaction. Request: ', $request->only('vendor_id', 'tanggal_pembelian'));
-
-                $kebutuhan = Kebutuhan::where('kebutuhan', 'Beli Baru')->first();
-                if (!$kebutuhan) {
-                    \Log::error('Kebutuhan "Beli Baru" not found in kebutuhans table. All records: ', Kebutuhan::all()->toArray());
-                    return back()->withInput()->withErrors(['kebutuhan_id' => 'Jenis kebutuhan "Beli Baru" tidak tersedia.']);
-                }
-                \Log::info('Kebutuhan ID found: ' . $kebutuhan->id);
-
-                $biaya = HargaKebutuhan::where('vendor_id', $validated['vendor_id'])
-                                    ->where('kebutuhan_id', $kebutuhan->id)
-                                    ->where('jenis_pemadam_id', $validated['jenis_pemadam_id'])
-                                    ->where('jenis_isi_id', $validated['jenis_isi_id'])
-                                    ->first();
-                if (!$biaya) {
-                    \Log::error('No matching biaya found. Query params: ', [
-                        'vendor_id' => $validated['vendor_id'],
-                        'kebutuhan_id' => $kebutuhan->id,
-                        'jenis_pemadam_id' => $validated['jenis_pemadam_id'],
-                        'jenis_isi_id' => $validated['jenis_isi_id'],
-                    ]);
-                    return back()->withInput()->withErrors(['biaya' => 'Kombinasi Vendor/Jenis Pemadam/Jenis Isi tidak memiliki harga yang terdaftar.']);
-                }
-                \Log::info('Biaya ID found: ' . $biaya->id);
-
-                $transaction = Transaksi::create([
-                    'master_apar_id' => $apar->id,
+            // 🔹 Jika APAR BARU → buat transaksi
+            if ($request->boolean('is_new_apar')) { // Gunakan helper boolean() yang lebih robust
+                
+                // Log: Tampilkan data yang digunakan untuk query harga
+                \Log::info('Attempting to find price with:', [
                     'vendor_id' => $validated['vendor_id'],
-                    'kebutuhan_id' => $kebutuhan->id,
-                    'biaya_id' => $biaya->id,
-                    'tanggal_pembelian' => $validated['tanggal_pembelian'],
-                    'tanggal_pelunasan' => null,
+                    'kebutuhan_id' => 1,
+                    'jenis_pemadam_id' => $validated['jenis_pemadam_id'],
+                    'jenis_isi_id' => $validated['jenis_isi_id'],
                 ]);
 
-                \Log::info('Transaction created successfully. ID: ' . $transaction->id . ', Data: ' . json_encode($transaction->toArray()));
-            } else {
-                echo "APAR BARU not detected, skipping transaction.<br>";
-                \Log::info('APAR BARU not detected. Skipping transaction creation.');
-            }
-        } catch (\Exception $e) {
-            \Log::error('Exception during store process: ' . $e->getMessage());
-            echo "Error: " . $e->getMessage() . "<br>";
-            return back()->withInput()->withErrors(['error' => 'Gagal menyimpan data. Error: ' . $e->getMessage()]);
-        }
+                // cari record harga di harga_kebutuhans
+                $harga = \DB::table('harga_kebutuhans')
+                    ->where('vendor_id', $validated['vendor_id'])
+                    ->where('kebutuhan_id', 1) // 1 = APAR BARU
+                    ->where('jenis_pemadam_id', $validated['jenis_pemadam_id'])
+                    ->where('jenis_isi_id', $validated['jenis_isi_id'])
+                    ->first();
 
-        return redirect()->route('master-apar.index')->with('success', 'Data APAR berhasil ditambahkan');
+                // Log: Tampilkan hasil query harga
+                \Log::info('Query Result for Price:', ['harga' => $harga]);
+
+                if (!$harga) {
+                    // Log: Tampilkan error jika harga tidak ditemukan
+                    \Log::error('Harga not found. Throwing exception.');
+                    throw new \Exception('Harga kebutuhan tidak ditemukan untuk kombinasi tersebut.');
+                }
+
+                // simpan ke transaksis
+                $transaksi = Transaksi::create([
+                    'master_apar_id' => $masterApar->id,
+                    'vendor_id' => $validated['vendor_id'],
+                    'kebutuhan_id' => 1, // APAR BARU
+                    'biaya_id' => $harga->id, // foreign key ke harga_kebutuhans
+                    'tanggal_pembelian' => $validated['tanggal_pembelian'],
+                ]);
+
+                // Log: Tampilkan ID transaksi yang baru dibuat
+                \Log::info('New Transaction created with ID:', ['id' => $transaksi->id]);
+            }
+            
+            \DB::commit();
+
+            \Log::info('Data successfully saved. Committing transaction.');
+
+            return redirect()->route('master-apar.index')
+                ->with('success', 'Data berhasil disimpan');
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            // Log: Tampilkan pesan error penuh
+            \Log::error('Exception during store process: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Gagal menyimpan data. Pastikan semua data terisi dengan benar. Error: ' . $e->getMessage()])->withInput();
+        }
     }
 
     /**
