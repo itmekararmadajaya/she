@@ -14,11 +14,11 @@ return new class extends Migration
         Schema::create('master_apars', function (Blueprint $table) {
             $table->id();
             $table->string('kode', 4)->unique();
-            $table->foreignId('jenis_pemadam_id')->nullable()->constrained()->onDelete('set null');
-            $table->foreignId('jenis_isi_id')->nullable()->constrained()->onDelete('set null');
+            $table->foreignId('jenis_pemadam_id')->nullable()->constrained('jenis_pemadams')->onDelete('set null');
+            $table->foreignId('jenis_isi_id')->nullable()->constrained('jenis_isis')->onDelete('set null');
             $table->integer('ukuran');
             $table->string('satuan', 2);
-            $table->foreignId('gedung_id')->constrained()->onDelete('cascade');
+            $table->foreignId('gedung_id')->constrained('gedungs')->onDelete('cascade');
             $table->string('lokasi');
             $table->date('tgl_kadaluarsa');
             $table->string('tanda');

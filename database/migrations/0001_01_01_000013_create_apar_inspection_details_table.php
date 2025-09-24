@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('apar_inspection_details', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('apar_inspection_id')->constrained()->onDelete('cascade');
-            $table->foreignId('item_check_id')->constrained()->onDelete('cascade');
+            $table->foreignId('apar_inspection_id')->constrained('apar_inspections')->onDelete('cascade');
+            $table->foreignId('item_check_id')->constrained('item_checks')->onDelete('cascade');
             $table->string('value', 5);
             $table->string('remark')->nullable();
             $table->timestamps();

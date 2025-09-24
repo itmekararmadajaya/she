@@ -62,7 +62,7 @@ Route::get('/inspeksi/form/{apar_id}', [InspeksiController::class, 'showForm'])-
 Route::get('/public/apar/{kode}/history', [PublicAparController::class, 'showPublicHistory'])->name('public.apar.history');
 
 // DOWNLOAD EXCEL
-Route::get('riwayat-inspeksi/export', [RiwayatInspeksiController::class, 'export'])->name('riwayat-inspeksi.export');
+Route::get('/riwayat-inspeksi/export', [RiwayatInspeksiController::class, 'export'])->name('riwayat-inspeksi.export');
 
 Route::get('/login', [AuthController::class, 'loginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'weblogin'])->name('weblogin');

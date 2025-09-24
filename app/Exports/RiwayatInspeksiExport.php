@@ -23,7 +23,7 @@ class RiwayatInspeksiExport implements FromCollection, WithStyles, WithHeadings,
 {
     protected $request;
     protected $itemChecks;
-    protected $inspections; 
+    protected $inspections;
 
     public function __construct(Request $request)
     {
@@ -36,10 +36,9 @@ class RiwayatInspeksiExport implements FromCollection, WithStyles, WithHeadings,
         if ($this->request->filled(['start_date', 'end_date'])) {
             $startDate = Carbon::parse($this->request->input('start_date'))->startOfDay();
             $endDate = Carbon::parse($this->request->input('end_date'))->endOfDay();
-            
             $query->whereBetween('date', [$startDate, $endDate]);
         }
-        
+
         if ($this->request->filled('q')) {
             $search = $this->request->input('q');
             $query->where(function ($q) use ($search) {
@@ -52,7 +51,7 @@ class RiwayatInspeksiExport implements FromCollection, WithStyles, WithHeadings,
                 });
             });
         }
-        
+
         $this->inspections = $query->get();
     }
 
@@ -66,10 +65,10 @@ class RiwayatInspeksiExport implements FromCollection, WithStyles, WithHeadings,
                 Carbon::parse($row->date)->translatedFormat('d F Y'),
                 $row->status,
             ];
-            
+
             foreach ($this->itemChecks as $itemCheck) {
                 $detail = $row->details->where('item_check_id', $itemCheck->id)->first();
-                
+
                 $statusText = 'Tidak Ada';
                 $remark = '';
 
@@ -95,7 +94,7 @@ class RiwayatInspeksiExport implements FromCollection, WithStyles, WithHeadings,
             return $rowData;
         });
     }
-    
+
     public function headings(): array
     {
         $mainHeadings = [
@@ -107,14 +106,14 @@ class RiwayatInspeksiExport implements FromCollection, WithStyles, WithHeadings,
         ];
 
         $itemCheckNames = $this->itemChecks->pluck('name')->toArray();
-        
+
         $allHeadings = array_merge($mainHeadings, $itemCheckNames, ['Foto', 'Nama Foto']);
 
         return [
             $allHeadings
         ];
     }
-    
+
     public function styles(Worksheet $sheet)
     {
         $sheet->getStyle('A2:' . $sheet->getHighestColumn() . '2')->applyFromArray([
@@ -125,7 +124,7 @@ class RiwayatInspeksiExport implements FromCollection, WithStyles, WithHeadings,
                 'startColor' => ['argb' => 'FFE5E7EB'],
             ],
         ]);
-        
+
         $sheet->getStyle('A3:' . $sheet->getHighestColumn() . ($sheet->getHighestRow()))->getAlignment()->setWrapText(true);
         $sheet->getStyle('A3:' . $sheet->getHighestColumn() . ($sheet->getHighestRow()))->getAlignment()->setVertical('top');
 
@@ -134,7 +133,7 @@ class RiwayatInspeksiExport implements FromCollection, WithStyles, WithHeadings,
         $sheet->getColumnDimension('C')->setWidth(20);
         $sheet->getColumnDimension('D')->setWidth(20);
         $sheet->getColumnDimension('E')->setWidth(15);
-        
+
         $itemCheckWidth = 15;
         $startColumnIndex = 6;
         foreach ($this->itemChecks as $index => $itemCheck) {
@@ -144,81 +143,58 @@ class RiwayatInspeksiExport implements FromCollection, WithStyles, WithHeadings,
 
         $photoColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($startColumnIndex + $this->itemChecks->count());
         $sheet->getColumnDimension($photoColumn)->setWidth(50);
-        
+
         $nameColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($startColumnIndex + $this->itemChecks->count() + 1);
         $sheet->getColumnDimension($nameColumn)->setWidth(25);
     }
-    
+
     public function registerEvents(): array
     {
         return [
             AfterSheet::class => function(AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
-                
+
                 $startDate = $this->request->filled('start_date') ? Carbon::parse($this->request->input('start_date'))->translatedFormat('d F Y') : '-';
                 $endDate = $this->request->filled('end_date') ? Carbon::parse($this->request->input('end_date'))->translatedFormat('d F Y') : '-';
                 $titleText = "Laporan Riwayat Inspeksi APAR: {$startDate} - {$endDate}";
-                
+
                 $sheet->insertNewRowBefore(1, 1);
-                
+
                 $sheet->setCellValue('A1', $titleText);
-                
+
                 $highestColumn = $sheet->getHighestColumn();
                 $sheet->mergeCells('A1:' . $highestColumn . '1');
-                
+
                 $sheet->getStyle('A1')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
 
                 $highestRow = $sheet->getHighestRow();
-                $startRow = 3; 
+                $startRow = 3;
+
+                // Pastikan $this->inspections tidak kosong dan indeks sesuai
+                if ($this->inspections->isEmpty()) {
+                    return; // Hentikan eksekusi jika tidak ada data
+                }
+
                 $photoColumnIndex = 6 + $this->itemChecks->count();
                 $photoColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($photoColumnIndex);
-                
+
                 for ($row = $startRow; $row <= $highestRow; $row++) {
-                    $inspection = $this->inspections[$row - $startRow];
-                    
-                    // Pewarnaan sel Status Inspeksi (Kolom E)
-                    $status = $inspection->status;
-                    $statusCell = 'E' . $row;
-                    $fillColor = null;
-                    if ($status == 'Lolos') {
-                         $fillColor = Color::COLOR_GREEN;
-                    } elseif ($status == 'Tidak Lolos' || $status == 'Dalam Perbaikan') {
-                         $fillColor = Color::COLOR_RED;
-                    }
+                    $index = $row - $startRow;
+                    if (isset($this->inspections[$index])) {
+                        $inspection = $this->inspections[$index];
 
-                    if ($fillColor) {
-                        $sheet->getStyle($statusCell)->applyFromArray([
-                            'font' => ['bold' => true],
-                            'fill' => [
-                                'fillType' => Fill::FILL_SOLID,
-                                'startColor' => ['argb' => 'FF' . substr($fillColor, 2)],
-                            ],
-                        ]);
-                    }
-
-                    // Pewarnaan sel untuk setiap item check
-                    $itemCheckStartColumnIndex = 6;
-                    foreach ($this->itemChecks as $index => $itemCheck) {
-                        $detail = $inspection->details->where('item_check_id', $itemCheck->id)->first();
-                        $cellColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($itemCheckStartColumnIndex + $index);
-                        $cell = $cellColumn . $row;
+                        // Pewarnaan sel Status Inspeksi (Kolom E)
+                        $status = $inspection->status;
+                        $statusCell = 'E' . $row;
                         $fillColor = null;
-
-                        if ($detail) {
-                            $value = $detail->value;
-                            if ($value == 'B') {
-                                $fillColor = Color::COLOR_GREEN;
-                            } else {
-                                // Rusak, Low Pressure, Over Pressure, dan lainnya akan menjadi merah
-                                $fillColor = Color::COLOR_RED;
-                            }
-                        } else {
-                            // Jika detail tidak ada, dianggap "Tidak Ada" dan diwarnai merah
+                        if ($status == 'Lolos') {
+                            $fillColor = Color::COLOR_GREEN;
+                        } elseif ($status == 'Tidak Lolos' || $status == 'Dalam Perbaikan') {
                             $fillColor = Color::COLOR_RED;
                         }
 
                         if ($fillColor) {
-                            $sheet->getStyle($cell)->applyFromArray([
+                            $sheet->getStyle($statusCell)->applyFromArray([
                                 'font' => ['bold' => true],
                                 'fill' => [
                                     'fillType' => Fill::FILL_SOLID,
@@ -226,25 +202,54 @@ class RiwayatInspeksiExport implements FromCollection, WithStyles, WithHeadings,
                                 ],
                             ]);
                         }
-                    }
 
-                    // Proses penyematan gambar
-                    $cellValue = $sheet->getCell($photoColumn . $row)->getValue();
-                    
-                    if (!empty($cellValue) && Storage::disk('public')->exists($cellValue)) {
-                        $imagePath = Storage::disk('public')->path($cellValue);
-                        
-                        $sheet->getRowDimension($row)->setRowHeight(150);
+                        // Pewarnaan sel untuk setiap item check
+                        $itemCheckStartColumnIndex = 6;
+                        foreach ($this->itemChecks as $itemIndex => $itemCheck) {
+                            $detail = $inspection->details->where('item_check_id', $itemCheck->id)->first();
+                            $cellColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($itemCheckStartColumnIndex + $itemIndex);
+                            $cell = $cellColumn . $row;
+                            $fillColor = null;
 
-                        $drawing = new Drawing();
-                        $drawing->setName('Final Photo');
-                        $drawing->setDescription('Final APAR Inspection Photo');
-                        $drawing->setPath($imagePath);
-                        $drawing->setHeight(150);
-                        $drawing->setCoordinates($photoColumn . $row);
-                        $drawing->setWorksheet($sheet);
+                            if ($detail) {
+                                $value = $detail->value;
+                                if ($value == 'B') {
+                                    $fillColor = Color::COLOR_GREEN;
+                                } else {
+                                    $fillColor = Color::COLOR_RED;
+                                }
+                            } else {
+                                $fillColor = Color::COLOR_RED;
+                            }
 
-                        $sheet->setCellValue($photoColumn . $row, null);
+                            if ($fillColor) {
+                                $sheet->getStyle($cell)->applyFromArray([
+                                    'font' => ['bold' => true],
+                                    'fill' => [
+                                        'fillType' => Fill::FILL_SOLID,
+                                        'startColor' => ['argb' => 'FF' . substr($fillColor, 2)],
+                                    ],
+                                ]);
+                            }
+                        }
+
+                        // Proses penyematan gambar
+                        $cellValue = $sheet->getCell($photoColumn . $row)->getValue();
+                        if (!empty($cellValue) && Storage::disk('public')->exists($cellValue)) {
+                            $imagePath = Storage::disk('public')->path($cellValue);
+
+                            $sheet->getRowDimension($row)->setRowHeight(150);
+
+                            $drawing = new Drawing();
+                            $drawing->setName('Final Photo');
+                            $drawing->setDescription('Final APAR Inspection Photo');
+                            $drawing->setPath($imagePath);
+                            $drawing->setHeight(150);
+                            $drawing->setCoordinates($photoColumn . $row);
+                            $drawing->setWorksheet($sheet);
+
+                            $sheet->setCellValue($photoColumn . $row, null);
+                        }
                     }
                 }
             },

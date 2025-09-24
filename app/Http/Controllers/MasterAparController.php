@@ -192,8 +192,9 @@ class MasterAparController extends Controller
                     throw new \Exception('Harga kebutuhan tidak ditemukan untuk kombinasi tersebut.');
                 }
                 
-                // Hitung biaya final dengan mengalikan biaya dasar dengan ukuran APAR
-                $biayaFinal = $harga->biaya * $validated['ukuran'];
+                // --- BAGIAN INI SUDAH DIUBAH ---
+                // Harga final sekarang langsung diambil dari tabel tanpa dikalikan ukuran
+                $biayaFinal = $harga->biaya;
 
                 // Simpan data transaksi ke tabel transaksis
                 Transaksi::create([
@@ -201,7 +202,7 @@ class MasterAparController extends Controller
                     'vendor_id' => $validated['vendor_id'],
                     'kebutuhan_id' => 1, // Kebutuhan ID untuk 'Beli Baru'
                     'biaya_id' => $harga->id,
-                    'biaya' => $biayaFinal,
+                    'biaya' => $biayaFinal, // Menggunakan biayaFinal yang sudah diperbarui
                     'tanggal_pembelian' => $validated['tanggal_pembelian'],
                 ]);
             }
