@@ -15,18 +15,10 @@ return new class extends Migration
     {
         Schema::create('apar_reparasi_photos', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('inspeksi_id');
-            $table->unsignedBigInteger('item_check_id');
+            $table->foreignId('inspeksi_id')->constrained('apar_inspections')->onDelete('cascade');
+            $table->foreignId('item_check_id')->constrained('item_checks')->onDelete('cascade');
             $table->string('foto_path');
             $table->timestamps();
-
-            $table->foreign('inspeksi_id')
-                ->references('id')->on('apar_inspections')
-                ->onDelete('cascade');
-
-            $table->foreign('item_check_id')
-                ->references('id')->on('item_checks')
-                ->onDelete('cascade');
         });
     }
 

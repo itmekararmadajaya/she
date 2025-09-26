@@ -130,9 +130,9 @@ class DashboardController extends Controller
         // --- LOGIKA GRAFIK KEUANGAN BULANAN (Perbaikan) ---
         // Mengubah logika menjadi hanya menjumlahkan kolom 'biaya' dari tabel 'transaksis'
         $monthlyPengeluaran = Transaksi::select(
-                DB::raw('SUM(biaya) as total_biaya'),
-                DB::raw('strftime("%Y-%m", tanggal_pembelian) as month_year')
-            )
+            DB::raw('SUM(biaya) as total_biaya'),
+            DB::raw('DATE_FORMAT(tanggal_pembelian, "%Y-%m") as month_year')
+        )
             ->whereBetween('tanggal_pembelian', [$displayStartDate, $displayEndDate])
             ->groupBy('month_year')
             ->orderBy('month_year', 'asc')

@@ -25,10 +25,13 @@ class RiwayatInspeksiExport implements FromCollection, WithStyles, WithHeadings,
     protected $itemChecks;
     protected $inspections;
 
-    public function __construct(Request $request)
+    public function __construct(Request $request = null)
     {
-        $this->request = $request;
-        $this->itemChecks = ItemCheck::orderBy('urutan')->get();
+        // Pastikan $this->request tidak pernah null
+        $this->request = $request ?? new Request();
+
+        // Ganti 'urutan' dengan 'id' atau 'name' karena kolom 'urutan' tidak ada di tabel.
+        $this->itemChecks = ItemCheck::orderBy('id')->get();
 
         $query = AparInspection::with(['masterApar.gedung', 'user', 'details'])
             ->orderBy('date', 'desc');

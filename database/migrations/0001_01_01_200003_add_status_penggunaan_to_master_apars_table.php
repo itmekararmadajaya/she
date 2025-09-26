@@ -12,7 +12,7 @@ return new class extends Migration
     public function up()
     {
         Schema::table('master_apars', function (Blueprint $table) {
-            $table->string('status_penggunaan')->default('BELUM DIPAKAI')->after('status_apar');
+            $table->string('status_penggunaan')->default('BELUM DIPAKAI');
         });
     }
 
