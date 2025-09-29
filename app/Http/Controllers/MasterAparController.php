@@ -7,7 +7,7 @@ use App\Models\MasterApar;
 use App\Models\Gedung;
 use App\Models\JenisIsi;
 use App\Models\JenisPemadam;
-use App\Models\vendor;
+use App\Models\Vendor;
 use App\Models\AparInspection;
 use Carbon\Carbon;
 use Endroid\QrCode\QrCode;
