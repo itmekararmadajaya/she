@@ -12,7 +12,7 @@ class PublicAparController extends Controller
         \Log::info("Mengakses riwayat publik untuk APAR dengan kode: {$kode}");
         
         // Tambahkan 'penggunaan' ke dalam relasi yang dimuat
-        $apar = MasterApar::with(['gedung', 'jenisIsi', 'jenisPemadam', 'inspections.user', 'inspections.details.itemCheck', 'penggunaan'])
+        $apar = MasterApar::with(['gedung', 'jenisIsi', 'jenisPemadam', 'inspections.user', 'inspections.details.itemCheck', 'penggunaans'])
             ->where('kode', $kode)
             ->firstOrFail();
         

@@ -1,5 +1,9 @@
 @extends('layouts.app')
 
+@php
+    use Carbon\Carbon;
+@endphp
+
 @section('content')
 
 <div class="container">
@@ -44,7 +48,8 @@
                             <td>{{ $item->user->name }}</td>
                             <td>{{ $item->masterApar->kode }}</td>
                             <td>{{ $item->gedung->nama }} - {{ $item->lokasi }}</td>
-                            <td>{{ \Carbon\Carbon::parse($item->tanggal_penggunaan)->isoFormat('D MMMM YYYY') }}</td>
+                            {{-- Menggunakan Carbon tanpa backslash karena sudah diimpor di atas --}}
+                            <td>{{ Carbon::parse($item->tanggal_penggunaan)->isoFormat('D MMMM YYYY') }}</td>
                             <td>{{ $item->alasan }}</td>
                             <td class="status-cell">
                                 @if($item->status == 'GOOD')

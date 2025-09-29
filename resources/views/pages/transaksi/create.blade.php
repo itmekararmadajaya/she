@@ -176,6 +176,7 @@
             const masterAparId = masterAparSelect.val();
             const itemCheckId = parseInt(itemCheckSelect.val());
 
+            // Reset input biaya
             biayaDisplayInput.val('').attr('placeholder', 'Memuat biaya...');
             biayaIdInput.val('');
             hiddenBiayaInput.val('');
@@ -185,12 +186,13 @@
 
             if (!isNaN(vendorId) && !isNaN(kebutuhanId)) {
                 if (selectedKebutuhan === 'Isi Ulang') {
+                    // --- LOGIC: ISI ULANG ---
                     if (masterAparId) {
                         const selectedApar = masterApars.find(apar => apar.id == masterAparId);
                         if (selectedApar) {
-                             foundPrice = hargaKebutuhans.find(harga => 
-                                parseInt(harga.vendor_id) === vendorId && 
-                                parseInt(harga.kebutuhan_id) === kebutuhanId && 
+                            foundPrice = hargaKebutuhans.find(harga =>
+                                parseInt(harga.vendor_id) === vendorId &&
+                                parseInt(harga.kebutuhan_id) === kebutuhanId &&
                                 parseInt(harga.jenis_pemadam_id) === parseInt(selectedApar.jenis_pemadam_id) &&
                                 parseInt(harga.jenis_isi_id) === parseInt(selectedApar.jenis_isi_id)
                             );
@@ -202,9 +204,9 @@
                         const jenisPemadamId = parseInt(jenisPemadamSelect.val());
                         const jenisIsiId = parseInt(jenisIsiSelect.val());
                         if (!isNaN(jenisPemadamId) && !isNaN(jenisIsiId)) {
-                            foundPrice = hargaKebutuhans.find(harga => 
-                                parseInt(harga.vendor_id) === vendorId && 
-                                parseInt(harga.kebutuhan_id) === kebutuhanId && 
+                            foundPrice = hargaKebutuhans.find(harga =>
+                                parseInt(harga.vendor_id) === vendorId &&
+                                parseInt(harga.kebutuhan_id) === kebutuhanId &&
                                 parseInt(harga.jenis_pemadam_id) === jenisPemadamId &&
                                 parseInt(harga.jenis_isi_id) === jenisIsiId
                             );
@@ -217,6 +219,7 @@
                         }
                     }
                 } else if (selectedKebutuhan === 'Ganti Komponen') {
+                    // --- LOGIC: GANTI KOMPONEN ---
                     if (!isNaN(itemCheckId)) {
                         foundPrice = hargaKebutuhans.find(harga =>
                             parseInt(harga.vendor_id) === vendorId &&
@@ -230,22 +233,41 @@
                         biayaDisplayInput.val('').attr('placeholder', 'Pilih Jenis Komponen');
                         return;
                     }
+                } else {
+                    // --- LOGIC: KEBUTUHAN UMUM (selain Isi Ulang/Ganti Komponen) ---
+                    // Mencari harga yang hanya cocok berdasarkan vendor dan kebutuhan.
+                    // Asumsi: Untuk kebutuhan umum, kolom jenis_pemadam_id, jenis_isi_id, dan item_check_id di tabel hargaKebutuhans adalah NULL.
+                    foundPrice = hargaKebutuhans.find(harga =>
+                        parseInt(harga.vendor_id) === vendorId &&
+                        parseInt(harga.kebutuhan_id) === kebutuhanId &&
+                        (harga.jenis_pemadam_id === null || harga.jenis_pemadam_id === undefined) &&
+                        (harga.jenis_isi_id === null || harga.jenis_isi_id === undefined) &&
+                        (harga.item_check_id === null || harga.item_check_id === undefined)
+                    );
+
+                    if (foundPrice) {
+                        finalBiaya = foundPrice.biaya;
+                    }
                 }
             } else {
                 biayaDisplayInput.val('').attr('placeholder', 'Pilih Vendor dan Kebutuhan');
                 return;
             }
 
+            // --- LOGIC: MENAMPILKAN HASIL ---
             if (foundPrice) {
                 const formattedBiaya = new Intl.NumberFormat('id-ID', {
                     style: 'currency',
                     currency: 'IDR',
                     minimumFractionDigits: 0
                 }).format(finalBiaya);
+                
+                // Menetapkan nilai yang akan terkirim
                 biayaDisplayInput.val(formattedBiaya);
                 hiddenBiayaInput.val(finalBiaya);
                 biayaIdInput.val(foundPrice.id);
             } else {
+                // Menetapkan nilai NULL jika harga tidak ditemukan
                 biayaDisplayInput.val('').attr('placeholder', 'Harga tidak ditemukan untuk kombinasi ini.');
                 hiddenBiayaInput.val('');
                 biayaIdInput.val('');
