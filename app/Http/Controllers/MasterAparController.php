@@ -389,7 +389,7 @@ class MasterAparController extends Controller
 
         $textKode = $apar->kode;
         $textLokasi = $apar->gedung->nama . " - " . $apar->lokasi;
-        $fontPath = public_path('fonts/Arial.ttf');
+        $fontPath = public_path('fonts/arial.ttf');
 
         $bboxKode = imagettfbbox($fontSize, 0, $fontPath, $textKode);
         $textWidthKode = $bboxKode[2] - $bboxKode[0];

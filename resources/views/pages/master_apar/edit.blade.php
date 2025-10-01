@@ -115,7 +115,7 @@ placeholder="Kode APAR">
                             required>
                         <option value="">Pilih satuan</option>
                         <option value="KG" {{ $masterApar->satuan == 'KG' ? 'selected' : '' }}>KG</option>
-                        <option value="Liter" {{ $masterApar->satuan == 'Liter' ? 'selected' : '' }}>Liter</option>
+                        <option value="L" {{ $masterApar->satuan == 'L' ? 'selected' : '' }}>L</option>
                     </select>
                     @error('satuan')
                         <div class="invalid-feedback">{{ $message }}</div>
