@@ -576,7 +576,7 @@ class AparController extends Controller
         return response()->json([
             'good_count' => $goodCount,
             'not_good_count' => $notGoodCount,
-        ]);
+        ]);
     }
 
     public function getUninspectedAreaCounts(Request $request)

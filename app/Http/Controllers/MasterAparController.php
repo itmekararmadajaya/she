@@ -7,7 +7,7 @@ use App\Models\MasterApar;
 use App\Models\Gedung;
 use App\Models\JenisIsi;
 use App\Models\JenisPemadam;
-use App\Models\vendor;
+use App\Models\Vendor;
 use App\Models\AparInspection;
 use Carbon\Carbon;
 use Endroid\QrCode\QrCode;
@@ -180,20 +180,29 @@ class MasterAparController extends Controller
             
             // 3. Jika ini APAR baru, buat juga data transaksinya
             if ($request->boolean('is_new_apar')) {
+                
+                $searchCriteria = [
+                    'vendor_id' => $validated['vendor_id'],
+                    'kebutuhan_id' => 1, // Kebutuhan ID untuk 'Beli Baru'
+                    'jenis_pemadam_id' => $validated['jenis_pemadam_id'],
+                    'jenis_isi_id' => $validated['jenis_isi_id'],
+                ];
+
+                // Log kriteria pencarian untuk debugging
+                \Log::info('Mencari harga kebutuhan APAR baru dengan kriteria:', $searchCriteria);
+                
                 // Cari harga dasar dari tabel harga_kebutuhans
                 $harga = \DB::table('harga_kebutuhans')
-                    ->where('vendor_id', $validated['vendor_id'])
-                    ->where('kebutuhan_id', 1) // 1 = APAR BARU
-                    ->where('jenis_pemadam_id', $validated['jenis_pemadam_id'])
-                    ->where('jenis_isi_id', $validated['jenis_isi_id'])
+                    ->where($searchCriteria)
                     ->first();
 
                 if (!$harga) {
+                    // Catat error dengan kriteria pencarian sebelum melempar exception
+                    \Log::error('Harga kebutuhan APAR baru tidak ditemukan.', $searchCriteria);
                     throw new \Exception('Harga kebutuhan tidak ditemukan untuk kombinasi tersebut.');
                 }
                 
                 // --- BAGIAN INI SUDAH DIUBAH ---
-                // Harga final sekarang langsung diambil dari tabel tanpa dikalikan ukuran
                 $biayaFinal = $harga->biaya;
 
                 // Simpan data transaksi ke tabel transaksis
@@ -202,7 +211,7 @@ class MasterAparController extends Controller
                     'vendor_id' => $validated['vendor_id'],
                     'kebutuhan_id' => 1, // Kebutuhan ID untuk 'Beli Baru'
                     'biaya_id' => $harga->id,
-                    'biaya' => $biayaFinal, // Menggunakan biayaFinal yang sudah diperbarui
+                    'biaya' => $biayaFinal,
                     'tanggal_pembelian' => $validated['tanggal_pembelian'],
                 ]);
             }

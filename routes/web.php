@@ -67,6 +67,7 @@ Route::middleware([AdminMiddleware::class])->group(function () {
     Route::get('/apar/download-qr/{id}', [MasterAparController::class, 'downloadQr'])->name('apar.download.qr');
     Route::get('/apar/qr/{kode}', [MasterAparController::class, 'handleQrScan'])->name('apar.handle.qr');
     Route::get('/inspeksi/form/{apar_id}', [InspeksiController::class, 'showForm'])->name('inspeksi.form');
+    
     // DOWNLOAD EXCEL
     Route::get('/riwayat-inspeksi/export', [RiwayatInspeksiController::class, 'export'])->name('riwayat-inspeksi.export');
 

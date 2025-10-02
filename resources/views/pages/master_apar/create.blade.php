@@ -9,6 +9,14 @@
                 <h1 class="h3 mb-0">Tambah APAR</h1>
             </div>
         </div>
+@if($errors->any())
+    <div class="mb-4 p3 bg-red-100 text-red-700 rounded">
+        <ul class="list-disc list-inside text-sm">
+            @foreach($errors->all() as $err)
+                <li>{{ $err }}</li>
+            @endforeach
+        </ul>
+    </div>
         <div class="card-body">
             <form method="POST" action="{{ route('master-apar.store') }}">
                 @csrf
@@ -21,7 +29,7 @@
                                    id="kode" 
                                    class="form-control @error('kode') is-invalid @enderror"
                                    value="{{ old('kode') }}" 
-                                   placeholder="Kode APAR">
+                                   placeholder="Kode APAR" maxlength="4">
                             @error('kode')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -104,7 +112,7 @@
                                     class="form-control @error('satuan') is-invalid @enderror">
                                 <option value="">Pilih satuan</option>
                                 <option value="KG" {{ old('satuan') == 'KG' ? 'selected' : '' }}>KG</option>
-                                <option value="Liter" {{ old('satuan') == 'Liter' ? 'selected' : '' }}>Liter</option>
+                                <option value="L" {{ old('satuan') == 'L' ? 'selected' : '' }}>L</option>
                             </select>
                             @error('satuan')
                                 <div class="invalid-feedback">{{ $message }}</div>
