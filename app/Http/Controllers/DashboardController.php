@@ -22,9 +22,19 @@ class DashboardController extends Controller
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
-        // Jika tidak ada tanggal yang dipilih, gunakan rentang default 12 bulan terakhir.
-        $displayStartDate = $startDate ?? Carbon::now()->subMonths(11)->startOfMonth()->toDateString();
-        $displayEndDate = $endDate ?? Carbon::now()->endOfMonth()->toDateString();
+        // Jika ada input tanggal, gunakan Carbon untuk membuat tanggal awal dan akhir bulan yang lengkap.
+        // Jika tidak, gunakan rentang 12 bulan terakhir sebagai default.
+        if ($startDate) {
+            $displayStartDate = Carbon::parse($startDate)->startOfMonth()->toDateString();
+        } else {
+            $displayStartDate = Carbon::now()->subMonths(11)->startOfMonth()->toDateString();
+        }
+
+        if ($endDate) {
+            $displayEndDate = Carbon::parse($endDate)->endOfMonth()->toDateString();
+        } else {
+            $displayEndDate = Carbon::now()->endOfMonth()->toDateString();
+        }
         
         // Ambil semua data gedung untuk digunakan sebagai label.
         $gedungs = Gedung::all();
@@ -123,16 +133,15 @@ class DashboardController extends Controller
         }
 
         // --- MENGHITUNG TOTAL PENGELUARAN (Sesuai permintaan) ---
-        // Mengubah logika menjadi hanya menjumlahkan kolom 'biaya' dari tabel 'transaksis'
+        // Query ini sekarang akan menggunakan tanggal yang diformat dengan benar.
         $totalPengeluaran = Transaksi::whereBetween('tanggal_pembelian', [$displayStartDate, $displayEndDate])
                                      ->sum('biaya');
 
-        // --- LOGIKA GRAFIK KEUANGAN BULANAN (Perbaikan) ---
-        // Mengubah logika menjadi hanya menjumlahkan kolom 'biaya' dari tabel 'transaksis'
+        // --- LOGIKA GRAFIK KEUANGAN BULANAN ---
         $monthlyPengeluaran = Transaksi::select(
-                DB::raw('SUM(biaya) as total_biaya'),
-                DB::raw('strftime("%Y-%m", tanggal_pembelian) as month_year')
-            )
+            DB::raw('SUM(biaya) as total_biaya'),
+            DB::raw('DATE_FORMAT(tanggal_pembelian, "%Y-%m") as month_year')
+        )
             ->whereBetween('tanggal_pembelian', [$displayStartDate, $displayEndDate])
             ->groupBy('month_year')
             ->orderBy('month_year', 'asc')
@@ -142,12 +151,22 @@ class DashboardController extends Controller
         $dataPengeluaran = [];
         $dataMap = $monthlyPengeluaran->keyBy('month_year')->toArray();
 
-        // Loop untuk mengisi array label dan data dengan data 12 bulan terakhir
+        // Array nama bulan dalam Bahasa Indonesia
+        $bulanIndonesia = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+        ];
+
+        // Loop untuk mengisi array label dan data
         $currentMonth = Carbon::parse($displayStartDate);
         while ($currentMonth->lessThanOrEqualTo(Carbon::parse($displayEndDate))) {
             $monthYearKey = $currentMonth->format('Y-m');
             
-            $labelsPengeluaran[] = $currentMonth->translatedFormat('F Y');
+            // Menggunakan array manual untuk nama bulan
+            $monthName = $bulanIndonesia[$currentMonth->month];
+            $labelsPengeluaran[] = $monthName . ' ' . $currentMonth->year;
+            
             $dataPengeluaran[] = $dataMap[$monthYearKey]['total_biaya'] ?? 0;
             
             $currentMonth->addMonth();

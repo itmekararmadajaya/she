@@ -175,13 +175,21 @@ class AparController extends Controller
         ->where('apar_inspection_details.value', '!=', 'B')
         ->pluck('latest_inspections.master_apar_id')
         ->unique();
+
+        // 3. Temukan ID APAR yang memiliki status 'NOT GOOD' dari penggunaan
+        $notGoodPenggunaanIds = Penggunaan::where('status', 'NOT GOOD')
+                                        ->pluck('master_apar_id')
+                                        ->unique();
+
+        // 4. Gabungkan ID APAR yang 'Not Good' dari inspeksi dan penggunaan, pastikan tidak ada duplikasi
+        $finalNotGoodAparIds = $notGoodAparIds->merge($notGoodPenggunaanIds)->unique();
         
-        // 3. Dapatkan semua APAR yang aktif
+        // 5. Dapatkan semua APAR yang aktif
         $totalActiveAparCount = MasterApar::where('is_active', true)->count();
         $notGoodAparCount = count($notGoodAparIds);
         $goodAparCount = $totalActiveAparCount - $notGoodAparCount;
 
-        // 4. Kembalikan data dalam format JSON
+        // 6. Kembalikan data dalam format JSON
         return response()->json([
             'good_count' => $goodAparCount,
             'not_good_count' => $notGoodAparCount,
@@ -546,8 +554,9 @@ class AparController extends Controller
         $notGoodAparIds = AparInspectionDetail::joinSub($latestInspections, 'latest_inspections', function ($join) {
             $join->on('apar_inspection_details.apar_inspection_id', '=', 'latest_inspections.latest_inspection_id');
         })
+        ->join('apar_inspections', 'latest_inspections.latest_inspection_id', '=', 'apar_inspections.id')
         ->where('apar_inspection_details.value', '!=', 'B')
-        ->pluck('latest_inspections.latest_inspection_id')
+        ->pluck('apar_inspections.master_apar_id')
         ->unique();
     
         // Temukan ID APAR yang rusak karena penggunaan

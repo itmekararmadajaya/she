@@ -73,4 +73,14 @@ class AuthController extends Controller
         Auth::logout();
         return redirect()->route('login');
     }
+
+    public function apiLogout(Request $request)
+    {
+        // Cek apakah user ada (dijamin oleh middleware auth:sanctum)
+        $request->user()->currentAccessToken()->delete();
+
+        return response()->json([
+            'message' => 'Logout berhasil. Token dicabut.',
+        ], 200);
+    }
 }

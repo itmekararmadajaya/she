@@ -43,8 +43,8 @@ class TransaksiController extends Controller
             $query->whereBetween('tanggal_pembelian', [$startDate, $endDate]);
         }
 
-        // Ambil data transaksi yang telah difilter dan urutkan
-        $transaksis = $query->orderBy('tanggal_pembelian', 'asc')->get();
+        // Ambil data transaksi yang telah difilter dan urutkan berdasarkan ID secara menaik
+        $transaksis = $query->orderBy('id', 'asc')->get();
 
         // Tampilkan view dengan data transaksi yang sudah difilter
         return view('pages.transaksi.index', compact('transaksis'));
@@ -287,33 +287,64 @@ class TransaksiController extends Controller
      */
     public function getBiaya(Request $request)
     {
-        try {
-            $query = HargaKebutuhan::where('vendor_id', $request->vendor_id)
-                                    ->where('kebutuhan_id', $request->kebutuhan_id);
-    
-            if ($request->has('master_apar_id')) {
-                $masterApar = MasterApar::find($request->master_apar_id);
-                if ($masterApar) {
-                    $query->where('jenis_pemadam_id', $masterApar->jenis_pemadam_id)
-                          ->where('jenis_isi_id', $masterApar->jenis_isi_id);
-                }
-            } else if ($request->has('jenis_pemadam_id') && $request->has('jenis_isi_id')) {
-                $query->where('jenis_pemadam_id', $request->jenis_pemadam_id)
-                      ->where('jenis_isi_id', $request->jenis_isi_id);
-            } else if ($request->has('item_check_id')) {
-                $query->where('item_check_id', $request->item_check_id);
+        Log::info('Request getBiaya masuk', $request->all());
+
+        $query = HargaKebutuhan::where('vendor_id', $request->vendor_id)
+            ->where('kebutuhan_id', $request->kebutuhan_id);
+
+        Log::info('Base Query dibuat', [
+            'vendor_id' => $request->vendor_id,
+            'kebutuhan_id' => $request->kebutuhan_id
+        ]);
+
+        // kebutuhan 1 & 2: filter master_apar
+        if (in_array((int)$request->kebutuhan_id, [1, 2]) && $request->filled('master_apar_id')) {
+            $masterApar = MasterApar::find($request->master_apar_id);
+
+            if ($masterApar) {
+                $query->where('jenis_pemadam_id', $masterApar->jenis_pemadam_id)
+                    ->where('jenis_isi_id', $masterApar->jenis_isi_id);
+
+                Log::info('Filter MasterApar dipakai', [
+                    'jenis_pemadam_id' => $masterApar->jenis_pemadam_id,
+                    'jenis_isi_id' => $masterApar->jenis_isi_id
+                ]);
             }
-    
-            $harga = $query->first();
-    
-            if ($harga) {
-                return response()->json($harga);
-            }
-    
-            return response()->json(['biaya' => null, 'id' => null], 200);
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'Terjadi kesalahan saat mengambil data'], 500);
         }
+
+        // kebutuhan 3: filter item_check_id
+        elseif ((int)$request->kebutuhan_id === 3 && $request->filled('item_check_id')) {
+            $query->where('item_check_id', $request->item_check_id);
+
+            Log::info('Filter item_check_id dipakai', [
+                'item_check_id' => $request->item_check_id
+            ]);
+        }
+
+        // kebutuhan lain (misalnya 4, 5, dst)
+        else {
+            Log::info('Kebutuhan lain, tanpa filter tambahan');
+        }
+
+        // Debug query
+        Log::info('SQL yang dieksekusi', [
+            'sql'      => $query->toSql(),
+            'bindings' => $query->getBindings()
+        ]);
+
+        $harga = $query->first();
+
+        $response = null;
+        if ($harga) {
+            $response = [
+                'biaya_id' => $harga->id,
+                'biaya'    => $harga->biaya,
+            ];
+        }
+
+        Log::info('Hasil Query getBiaya', ['response' => $response]);
+
+        return response()->json($response);
     }
 
     /**

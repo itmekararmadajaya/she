@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AparController;
 use App\Http\Controllers\AuthController;
 // use App\Http\Controllers\Api\ReparasiController;
-use App\Http\Controllers\TransaksiController; // Tambahkan ini
+use App\Http\Controllers\TransaksiController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\KebutuhanController;
 
@@ -39,13 +39,13 @@ Route::middleware('auth:sanctum')->post('/apar/{id}/update', [AparController::cl
 Route::get('/apar/expiring', [AparController::class, 'getExpiringApars']);
 Route::middleware('auth:sanctum')->post('/update-apar', [AparController::class, 'update']);
 
-// --- API BARU UNTUK REPARASI ---
+// API BARU UNTUK REPARASI
 // Route::post('/submit-reparasi', [ReparasiController::class, 'submitReparasi']);
 // Route::get('/apar-rusak/count', [ReparasiController::class, 'countAparRusak']);
 // Route::get('/apar-rusak/{apar_id}', [ReparasiController::class, 'getDetailRusak']);
 // Route::get('/apar-rusak', [ReparasiController::class, 'getAparRusak']); 
 
-// --- API BARU UNTUK TRANSAKSI ---
+// API BARU UNTUK TRANSAKSI
 Route::get('/transaksi/options', [TransaksiController::class, 'getAparOptions']);
 Route::get('/transaksi/biaya', [TransaksiController::class, 'getBiaya']);
 Route::post('/transaksis', [TransaksiController::class, 'storeApi']);
@@ -59,7 +59,7 @@ Route::get('/apar/harga-isi-ulang', [AparController::class, 'getHargaIsiUlang'])
 // API BARU UNTUK MENGHITUNG STATUS APAR
 Route::get('/apar-status-counts', [AparController::class, 'getAparStatusCounts']);
 
-// --- VENDORS ---
+// VENDORS
 Log::info('API vendors dipanggil');
 Route::get('/vendors', [VendorController::class, 'index']);
 Route::post('/vendors', [VendorController::class, 'store']);
@@ -72,7 +72,7 @@ Route::get('/vendors/{vendor}/kebutuhans', [HargaKebutuhanController::class, 'ge
 //RUSAK
 Route::get('/apar/rusak', [AparController::class, 'getRusakApars']);
 
-// --- KEBUTUHAN ---
+// KEBUTUHAN
 Route::get('/kebutuhans', [KebutuhanController::class, 'apiIndex']);
 
 // PENGGUNAAN

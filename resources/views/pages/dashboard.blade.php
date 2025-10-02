@@ -61,7 +61,7 @@
                             <div class="card-body d-flex flex-column justify-content-between">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <h6 class="mb-0 fw-semibold fs-3">PENGELUARAN</h6>
-                                    <i class="fas fa-arrow-up-right-from-square fa-sm"></i>
+                                    <i class="fas fa-arrow-up-right-from-square fa-2x" style="color: white"></i>
                                 </div>
                                 <h3 class="mt-1 mb-0 display-4 fw-bold">{{ number_format($totalPengeluaran, 0, ',', '.') }}</h3>
                             </div>

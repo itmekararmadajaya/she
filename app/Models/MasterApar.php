@@ -146,6 +146,12 @@ class MasterApar extends Model
         return 'GOOD';
     }
 
+    public function getStatusPenggunaanAttribute()
+    {
+        $latestUsage = $this->latestPenggunaan;
+        return $latestUsage && $latestUsage->status == 'NOT GOOD' ? 'SUDAH DIPAKAI' : 'BELUM DIPAKAI';
+    }
+
     /**
      * Mendapatkan warna status untuk tujuan tampilan.
      */
