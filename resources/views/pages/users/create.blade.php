@@ -35,7 +35,13 @@
                     </div>
 
                     {{-- Email --}}
-                    <div class="form-group mb-3">
+                    {{-- Checkbox untuk Toggle Email --}}
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="toggleEmail" checked>
+                        <label class="form-check-label" for="toggleEmail">Email Kustom</label>
+                    </div>
+
+                    <div class="form-group mb-3" id="email-group">
                         <label for="email">Email</label>
                         <input type="email" name="email" class="form-control @error('email') is-invalid @enderror"
                             id="email" value="{{ old('email') }}" placeholder="Email aktif">
@@ -117,6 +123,29 @@
         passwordConfirmation.setAttribute('type', type);
         this.querySelector('i').classList.toggle('fa-eye-slash');
         this.querySelector('i').classList.toggle('fa-eye');
+    });
+
+    // Logika Toggle Email
+    const toggleEmailCheckbox = document.getElementById('toggleEmail');
+    const emailGroup = document.getElementById('email-group');
+    const emailInput = document.getElementById('email');
+
+    // Cek status saat halaman dimuat (jika ada error validasi)
+    if (!emailInput.value && !{{ old('email') ? 'true' : 'false' }}) {
+        // Jika tidak ada 'old' email, sembunyikan secara default
+        emailGroup.style.display = 'none';
+        toggleEmailCheckbox.checked = false;
+    }
+
+    toggleEmailCheckbox.addEventListener('change', function () {
+        if (this.checked) {
+            // Tampilkan field Email
+            emailGroup.style.display = 'block';
+        } else {
+            // Sembunyikan field Email dan kosongkan nilainya
+            emailGroup.style.display = 'none';
+            emailInput.value = '';
+        }
     });
 </script>
 @endpush

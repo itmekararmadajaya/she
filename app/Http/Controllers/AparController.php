@@ -557,26 +557,33 @@ class AparController extends Controller
         ->join('apar_inspections', 'latest_inspections.latest_inspection_id', '=', 'apar_inspections.id')
         ->where('apar_inspection_details.value', '!=', 'B')
         ->pluck('apar_inspections.master_apar_id')
+        ->map(function ($id) {
+            return (string) $id;
+        })
         ->unique();
-    
+        
         // Temukan ID APAR yang rusak karena penggunaan
-        $notGoodPenggunaanIds = Penggunaan::where('status', 'NOT GOOD')->pluck('master_apar_id');
-    
+        $notGoodPenggunaanIds = Penggunaan::where('status', 'NOT GOOD')
+            ->pluck('master_apar_id')
+            ->map(function ($id) {
+                return (string) $id;
+            });
+
         // Gabungkan semua ID APAR yang rusak dan hilangkan duplikasi
         $finalNotGoodAparIds = $notGoodAparIds->merge($notGoodPenggunaanIds)->unique();
-    
+        
         // Dapatkan total jumlah APAR yang aktif
         $totalActiveAparCount = MasterApar::where('is_active', true)->count();
-    
+        
         // Hitung jumlah APAR GOOD dan NOT GOOD
         $notGoodCount = $finalNotGoodAparIds->count();
         $goodCount = $totalActiveAparCount - $notGoodCount;
-    
+        
         // Kembalikan data dalam format JSON
         return response()->json([
             'good_count' => $goodCount,
             'not_good_count' => $notGoodCount,
-        ]);
+        ]);
     }
 
     public function getUninspectedAreaCounts(Request $request)
