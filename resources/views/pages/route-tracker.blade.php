@@ -3,134 +3,123 @@
 @section('title', 'Pelacak Rute')
 
 @section('content')
-    <div class="pc-container">
-        <div class="pc-content">
-            <h1 class="mb-1 h3">Pelacak Rute</h1>
-
-            <div class="card">
-                <div class="card-header">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <input type="text" id="searchBox" class="form-control" placeholder="Cari rute...">
-                        </div>
-                    </div>
+    <div class="container">
+        <div class="card shadow mb-4 card-custom-rounded">
+            <div class="card-header py-3">
+                <h1 class="h3 mb-0 text-gray-800">Pelacak Rute</h1>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <input type="text" id="searchBox" class="form-control" placeholder="Cari rute..." aria-label="Search routes" style="max-width: 300px;">
                 </div>
-                <div class="card-body p-0 table-responsive">
-                    <table>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
                         <thead>
                             <tr>
-                                <th style="width: 10%;">No</th>
-                                <th style="width: 15%;">File</th>
-                                <th style="width: 18%;">Metode</th>
-                                <th style="width: 15%;">URL</th>
-                                <th style="width: 21%;">Nama Rute</th>
-                                <th style="width: 20%;">Controller</th>
-                                <th style="width: 20%;">Lokasi 
-                                    File</th>
-                                <th style="width: 15%;">Data 
-                                    TF</th>
-                                <th style="width: 10%;">Key</th>
-                                <th style="width: 20%;">Fungsi</th>
-                                <th style="width: 12%;">Auth</th>
-                                <th style="width: 15%;">Contoh
-                                    Respon</th>
+                                <th>No</th>
+                                <th>File</th>
+                                <th>Metode</th>
+                                <th>URL</th>
+                                <th>Nama Rute</th>
+                                <th>Controller</th>
+                                <th>Lokasi File</th>
+                                <th>Data TF</th>
+                                <th>Key</th>
+                                <th>Fungsi</th>
+                                <th>Auth</th>
+                                <th>Contoh Respon</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($routes as $route)
-                            <tr>
-                                <td>{{ $loop->iteration }}</td>
-                                <td>{{ $route['file'] }}</td>
-                                <td>
-                                    @foreach(explode('|', $route['methods']) as $method)
-                                        <span class="method {{ $method }}">{{ $method }}</span>
-                                    @endforeach
-                                </td>
-                                <td>{{ $route['uri'] }}</td>
-                                <td>{{ $route['name'] }}</td>
-                                <td>{{ $route['action'] }}</td>
-                                <td>{{ $route['file_path'] }}:{{ $route['line'] }}</td>
-                                <td>{{ $route['data_transfer'] }}</td>
-                                <td>{{ $route['keys'] }}</td>
-                                <td>{{ $route['function'] }}</td>
-                                <td>{{ $route['auth'] }}</td>
-                                <td><pre>{{ $route['response_example'] }}</pre></td>
-                            </tr>
-                            @endforeach
+                            @forelse($routes as $route)
+                                <tr>
+                                    <td>{{ $loop->iteration }}</td>
+                                    <td>{{ $route['file'] }}</td>
+                                    <td>
+                                        @foreach(explode('|', $route['methods']) as $method)
+                                            <span class="method {{ $method }}">{{ $method }}</span>
+                                        @endforeach
+                                    </td>
+                                    <td>{{ $route['uri'] }}</td>
+                                    <td>{{ $route['name'] }}</td>
+                                    <td>{{ $route['action'] }}</td>
+                                    <td>{{ Str::limit($route['file_path'] . ':' . $route['line'], 20, '...') }}</td>
+                                    <td>{{ $route['data_transfer'] }}</td>
+                                    <td>{{ $route['keys'] }}</td>
+                                    <td>{{ $route['function'] }}</td>
+                                    <td>{{ $route['auth'] }}</td>
+                                    <td><pre>{{ Str::limit($route['response_example'], 20, '...') }}</pre></td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="12" class="text-center">Tidak ada data rute.</td>
+                                </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
             </div>
-
         </div>
     </div>
 @endsection
 
 <style>
-    /* Styling untuk tabel */
-    table {
+    .card-custom-rounded {
+        border-radius: 1rem !important;
+    }
+
+    .table {
         width: 100%;
         border-collapse: collapse;
-        table-layout: fixed;
     }
+
     th, td {
-        border: 1px solid #ddd;
-        padding: 12px;
-        text-align: left;
-        word-break: break-all;
-        overflow: hidden
+        vertical-align: middle;
+        word-wrap: break-word;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 0;
     }
-    th {
-        background-color: #f2f2f2;
-    }
+
     .method {
-        padding: 4px 8px;
-        border-radius: 4px;
+        display: inline-block;
+        padding: 3px 6px;
+        border-radius: 3px;
         font-weight: bold;
         color: white;
-        white-space: nowrap;
+        margin: 2px;
     }
+
     .GET { background-color: #4CAF50; }
     .POST { background-color: #2196F3; }
     .PUT, .PATCH { background-color: #FFC107; }
     .DELETE { background-color: #F44336; }
-
-    /* Styling untuk card */
-    .card {
-        border-radius: 12px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        margin-top: 20px;
-        background-color: white;
-    }
-    .card-header {
-        padding: 20px;
-        border-bottom: 1px solid #eee;
-    }
-    .card-body {
-        padding: 0;
-    }
-    
-    /* Styling untuk input pencarian */
-    #searchBox {
-        border-radius: 8px;
-        border: 1px solid #ccc;
-        padding: 8px;
-    }
 
     pre {
         white-space: pre-wrap;
         word-wrap: break-word;
         font-family: monospace;
         margin: 0;
+        background-color: #f8f9fa;
+        padding: 5px;
+        border-radius: 4px;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
-    .pc-container {
-    padding: 20px;
-    box-sizing: border-box; /* Memastikan padding tidak menambah lebar */
-    }
-    
-    .pc-content {
-        max-width: 100%; /* Memastikan konten tidak melebihi lebar induknya */
+    @media (max-width: 768px) {
+        th, td {
+            font-size: 12px;
+            padding: 6px;
+        }
+        .method {
+            padding: 2px 4px;
+            font-size: 10px;
+        }
+        #searchBox {
+            width: 100%;
+        }
     }
 </style>
 
@@ -145,11 +134,7 @@
 
             tableRows.forEach(row => {
                 const rowText = row.textContent.toLowerCase();
-                if (rowText.includes(searchText)) {
-                    row.style.display = 'table-row';
-                } else {
-                    row.style.display = 'none';
-                }
+                row.style.display = rowText.includes(searchText) ? 'table-row' : 'none';
             });
         });
     });

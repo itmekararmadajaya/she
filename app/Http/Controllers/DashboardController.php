@@ -27,7 +27,7 @@ class DashboardController extends Controller
         if ($startDate) {
             $displayStartDate = Carbon::parse($startDate)->startOfMonth()->toDateString();
         } else {
-            $displayStartDate = Carbon::now()->subMonths(11)->startOfMonth()->toDateString();
+            $displayStartDate = Carbon::now()->startOfMonth()->toDateString();
         }
 
         if ($endDate) {
